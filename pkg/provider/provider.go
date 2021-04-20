@@ -56,8 +56,8 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 				"bmaas_refresh_available_resources": {
 					Type:        schema.TypeBool,
 					Optional:    true,
-					Default:     true,
-					Description: "Toggle bmaas refresh available resources on client creation, temporary workaround for multiple tenants",
+					Default:     false,
+					Description: "Toggle bmaas refresh available resources on client creation, workaround for multiple services",
 				},
 			},
 
