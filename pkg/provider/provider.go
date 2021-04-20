@@ -11,6 +11,22 @@ import (
 
 type ConfigureFunc func(p *schema.Provider) schema.ConfigureContextFunc
 
+// ConfigData - each element in this struct corresponds to an entry in the Provider Schema below
+type ConfigData struct {
+	IAMToken                       string
+	CaaSAPIUrl                     string
+	BMaaSRefreshAvailableResources bool
+}
+
+// GetConfigData returns a populated ConfigData struct from the schema.ResourceData input
+func GetConfigData(d *schema.ResourceData) ConfigData {
+	return ConfigData{
+		IAMToken:                       d.Get("iam_token").(string),
+		CaaSAPIUrl:                     d.Get("caas_api_url").(string),
+		BMaaSRefreshAvailableResources: d.Get("bmaas_refresh_available_resources").(bool),
+	}
+}
+
 func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) plugin.ProviderFunc {
 	return func() *schema.Provider {
 		dataSources := make(map[string]*schema.Resource)
@@ -58,7 +74,8 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 	}
 }
 
-// ServiceRegistrationSlice: helper function to return []registration.ServiceRegistration from registration.ServiceRegistration input
+// ServiceRegistrationSlice: helper function to return []registration.ServiceRegistration from
+// registration.ServiceRegistration input
 // For use in provider code acceptance tests
 func ServiceRegistrationSlice(reg registration.ServiceRegistration) []registration.ServiceRegistration {
 	return []registration.ServiceRegistration{reg}
