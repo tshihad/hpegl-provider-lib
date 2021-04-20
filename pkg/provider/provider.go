@@ -57,3 +57,9 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 		return &p
 	}
 }
+
+// ServiceRegistrationSlice: helper function to return []registration.ServiceRegistration from registration.ServiceRegistration input
+// For use in provider code acceptance tests
+func ServiceRegistrationSlice(reg registration.ServiceRegistration) []registration.ServiceRegistration {
+	return []registration.ServiceRegistration{reg}
+}
