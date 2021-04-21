@@ -9,7 +9,8 @@ import "github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
 type Initialisation interface {
 	// NewClient is run by hpegl to initialise the service client
 	NewClient(config provider.ConfigData) (interface{}, error)
-	// ServiceName is used by hpegl error-handling code, it returns the key to be used for the client
-	// returned by NewClient in the map[string]interface{} passed-down to provider code by terraform
+
+	// ServiceName is used by hpegl, it returns the key to be used for the client returned by NewClient
+	// in the map[string]interface{} passed-down to provider code by terraform
 	ServiceName() string
 }
