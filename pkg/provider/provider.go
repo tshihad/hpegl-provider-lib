@@ -11,7 +11,7 @@ import (
 
 type ConfigureFunc func(p *schema.Provider) schema.ConfigureContextFunc
 
-// ConfigData - each element in this struct corresponds to an entry in the Provider Schema below
+// ConfigData - each element in this struct corresponds to an entry in the Provider Schema in NewProviderFunc below
 type ConfigData struct {
 	IAMToken                       string
 	CaaSAPIUrl                     string
@@ -27,6 +27,10 @@ func GetConfigData(d *schema.ResourceData) ConfigData {
 	}
 }
 
+// NewProviderFunc is called from hpegl and service-repos to create a plugin.ProviderFunc which is used
+// to define the provider that is exposed to Terraform.  The hpegl repo will use this to create a provider
+// that spans all supported services.  A service repo will use this to create a "dummy" provider restricted
+// to just the service that can be used for development purposes and for acceptance testing
 func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) plugin.ProviderFunc {
 	return func() *schema.Provider {
 		dataSources := make(map[string]*schema.Resource)
