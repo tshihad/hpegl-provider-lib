@@ -9,6 +9,8 @@ import (
 	"github.com/hpe-hcss/hpegl-provider-lib/pkg/registration"
 )
 
+// ConfigureFunc is a type definition of a function that returns a ConfigureContextFunc object
+// A function of this type is passed in to NewProviderFunc below
 type ConfigureFunc func(p *schema.Provider) schema.ConfigureContextFunc
 
 // ConfigData - each element in this struct corresponds to an entry in the Provider Schema in NewProviderFunc below
@@ -19,6 +21,7 @@ type ConfigData struct {
 }
 
 // GetConfigData returns a populated ConfigData struct from the schema.ResourceData input
+// This function is called from a ConfigureFunc
 func GetConfigData(d *schema.ResourceData) ConfigData {
 	return ConfigData{
 		IAMToken:                       d.Get("iam_token").(string),
@@ -78,9 +81,9 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 	}
 }
 
-// ServiceRegistrationSlice: helper function to return []registration.ServiceRegistration from
+// ServiceRegistrationSlice helper function to return []registration.ServiceRegistration from
 // registration.ServiceRegistration input
-// For use in provider code acceptance tests
+// For use in service provider repos
 func ServiceRegistrationSlice(reg registration.ServiceRegistration) []registration.ServiceRegistration {
 	return []registration.ServiceRegistration{reg}
 }
