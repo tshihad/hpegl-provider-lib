@@ -15,18 +15,18 @@ type ConfigureFunc func(p *schema.Provider) schema.ConfigureContextFunc
 
 // ConfigData - each element in this struct corresponds to an entry in the Provider Schema in NewProviderFunc below
 type ConfigData struct {
-	IAMToken                       string
-	CaaSAPIUrl                     string
-	BMaaSRefreshAvailableResources bool
+	IAMToken                string
+	CaaSAPIUrl              string
+	BMaaSResourcesAvailable bool
 }
 
 // GetConfigData returns a populated ConfigData struct from the schema.ResourceData input
 // This function is called from a ConfigureFunc
 func GetConfigData(d *schema.ResourceData) ConfigData {
 	return ConfigData{
-		IAMToken:                       d.Get("iam_token").(string),
-		CaaSAPIUrl:                     d.Get("caas_api_url").(string),
-		BMaaSRefreshAvailableResources: d.Get("bmaas_refresh_available_resources").(bool),
+		IAMToken:                d.Get("iam_token").(string),
+		CaaSAPIUrl:              d.Get("caas_api_url").(string),
+		BMaaSResourcesAvailable: d.Get("bmaas_resources_available").(bool),
 	}
 }
 
@@ -60,11 +60,11 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 					Optional:    true,
 					Description: "HPEGL CaaS API URL",
 				},
-				"bmaas_refresh_available_resources": {
+				"bmaas_resources_available": {
 					Type:        schema.TypeBool,
 					Optional:    true,
 					Default:     false,
-					Description: "Toggle bmaas refresh available resources on client creation, workaround for multiple services",
+					Description: "Toggle bmaas provider client and resource creation, this will require a .gltform file",
 				},
 			},
 
