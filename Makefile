@@ -2,10 +2,6 @@
 #(C) Copyright 2019-2020 Hewlett Packard Enterprise Development LP
 # Inspiration from https://github.com/rightscale/go-boilerplate/blob/master/Makefile
 
-NAME=$(shell find cmd -name "main.go" -exec dirname {} \; | sort -u | sed -e 's|cmd/||')
-VERSION=0.0.1
-LOCAL_LOCATION=~/.local/share/terraform/plugins/terraform.example.com/greenlake/hpegl/$(VERSION)/linux_amd64/
-
 # Stuff that needs to be installed globally (not in vendor)
 DEPEND=
 
@@ -72,9 +68,6 @@ coverage: vendor
 	@go tool cover -html=$(coverage_dir)/coverage.out -o $(coverage_dir)/html/main.html;
 	@echo "Generated $(coverage_dir)/html/main.html";
 .PHONY: coverage
-
-acceptance:
-	TF_ACC=true go test -v -timeout=120s -cover ./...
 
 all: lint test
 .PHONY: all

@@ -3,12 +3,15 @@
     * [pkg/client](#pkgclient)
         + [Use in service provider repos](#use-in-service-provider-repos)
         + [Use in hpegl provider](#use-in-hpegl-provider)
-    * [pkg/provider](#pkgprovider)
+    * [pkg/gltform](#pkggltform)
         + [Use in service provider repos](#use-in-service-provider-repos-1)
         + [Use in hpegl provider](#use-in-hpegl-provider-1)
-    * [pkg/registration](#pkgregistration)
+    * [pkg/provider](#pkgprovider)
         + [Use in service provider repos](#use-in-service-provider-repos-2)
         + [Use in hpegl provider](#use-in-hpegl-provider-2)
+    * [pkg/registration](#pkgregistration)
+        + [Use in service provider repos](#use-in-service-provider-repos-3)
+        + [Use in hpegl provider](#use-in-hpegl-provider-3)
 
 # hpegl-provider-lib
 
@@ -213,6 +216,61 @@ func NewClientMap(config provider.ConfigData) (map[string]interface{}, diag.Diag
 }
 
 ```
+
+## pkg/gltform
+
+This package provides utilities to read and parse a .gltform file.  The .gltform file is primarily used to share
+bmaas/Quake information with the bmaas/Quake provider code.  It is also used by Genesis tooling to share
+the IAM token with other services (CaaS at the moment).  It is TBD if we will persist with the use of the file
+as the provider is developed.
+
+The format of the .gltform file is:
+```go
+// Gljwt - the contents of the .gltform file
+type Gljwt struct {
+	// SpaceName is optional, and is only required for bmaas if we want to create a project
+	SpaceName string `yaml:"space_name,omitempty"`
+	// ProjectID - the bmaas/Quake project ID
+	ProjectID string `yaml:"project_id"`
+	// BmaasRestURL - the URL to be used for bmaas, at present it refers to a Quake portal URL
+	BmaasRestURL string `yaml:"bmaas_rest_url"`
+	// Token - the GL IAM token
+	Token string `yaml:"access_token"`
+}
+```
+
+### Use in service provider repos
+
+The major use of this file is with the bmaas/Quake provider code.  As mentioned above it is also used by
+Genesis tooling to share the IAM token with other services, like so:
+
+```go
+func (i InitialiseClient) NewClient(config provider.ConfigData) (interface{}, error) {
+	caasCfg := mcaasapi.Configuration{
+		BasePath:      config.CaaSAPIUrl,
+		DefaultHeader: make(map[string]string),
+		UserAgent:     "hpegl-terraform",
+	}
+
+	cli := new(Client)
+	cli.CaasClient = mcaasapi.NewAPIClient(&caasCfg)
+
+	if config.IAMToken == "" {
+		gltoken, err := gltform.GetGLConfig()
+		if err != nil {
+			return nil, fmt.Errorf("Error reading GL token file:  %w", err)
+		}
+		config.IAMToken = gltoken.Token
+	}
+	cli.IAMToken = config.IAMToken
+
+	return cli, nil
+}
+```
+
+### Use in hpegl provider
+
+This package isn't used by the hpegl provider
 
 ## pkg/provider
 
