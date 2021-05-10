@@ -19,8 +19,8 @@ type Gljwt struct {
 	SpaceName string `yaml:"space_name,omitempty"`
 	// ProjectID - the bmaas/Quake project ID
 	ProjectID string `yaml:"project_id"`
-	// BmaasRestURL - the URL to be used for bmaas, at present it refers to a Quake portal URL
-	BmaasRestURL string `yaml:"bmaas_rest_url"`
+	// RestURL - the URL to be used for bmaas, at present it refers to a Quake portal URL
+	RestURL string `yaml:"rest_url"`
 	// Token - the GL IAM token
 	Token string `yaml:"access_token"`
 }
