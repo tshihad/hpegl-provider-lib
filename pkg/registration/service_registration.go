@@ -4,10 +4,13 @@
 
 package registration
 
-import "github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+import (
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+)
 
 type ServiceRegistration interface {
-	// Name is the name of this Service
+	// Name is the name of this Service - a mnemonic.  The value will be used to
+	// set the name used for this service's entry in the provider schema
 	Name() string
 
 	// SupportedDataSources returns the supported Data Sources supported by this Service
@@ -15,4 +18,10 @@ type ServiceRegistration interface {
 
 	// SupportedResources returns the supported Resources supported by this Service
 	SupportedResources() map[string]*schema.Resource
+
+	// ProviderSchemaEntry returns the provider-level resource schema entry for this service
+	// We will convert this into a schema.Schema of TypeSet in the provider
+	// These blocks are marked as optional, it is up to the service-provider code to check that
+	// the relevant service block is present if it is needed.
+	ProviderSchemaEntry() *schema.Resource
 }

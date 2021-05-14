@@ -3,6 +3,8 @@
 package provider
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
@@ -13,23 +15,6 @@ import (
 // A function of this type is passed in to NewProviderFunc below
 type ConfigureFunc func(p *schema.Provider) schema.ConfigureContextFunc
 
-// ConfigData - each element in this struct corresponds to an entry in the Provider Schema in NewProviderFunc below
-type ConfigData struct {
-	IAMToken                string
-	CaaSAPIUrl              string
-	BMaaSResourcesAvailable bool
-}
-
-// GetConfigData returns a populated ConfigData struct from the schema.ResourceData input
-// This function is called from a ConfigureFunc
-func GetConfigData(d *schema.ResourceData) ConfigData {
-	return ConfigData{
-		IAMToken:                d.Get("iam_token").(string),
-		CaaSAPIUrl:              d.Get("caas_api_url").(string),
-		BMaaSResourcesAvailable: d.Get("bmaas_resources_available").(bool),
-	}
-}
-
 // NewProviderFunc is called from hpegl and service-repos to create a plugin.ProviderFunc which is used
 // to define the provider that is exposed to Terraform.  The hpegl repo will use this to create a provider
 // that spans all supported services.  A service repo will use this to create a "dummy" provider restricted
@@ -38,6 +23,8 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 	return func() *schema.Provider {
 		dataSources := make(map[string]*schema.Resource)
 		resources := make(map[string]*schema.Resource)
+		// providerSchema is the Schema for the provider
+		providerSchema := make(map[string]*schema.Schema)
 		for _, service := range reg {
 			for k, v := range service.SupportedDataSources() {
 				dataSources[k] = v
@@ -45,29 +32,34 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 			for k, v := range service.SupportedResources() {
 				resources[k] = v
 			}
+
+			// TODO we can add a set of reserved providerSchema keys here to check against
+
+			if service.ProviderSchemaEntry() != nil {
+				// We panic if the service.Name() key is repeated in providerSchema
+				if _, ok := providerSchema[service.Name()]; ok {
+					panic(fmt.Sprintf("service name %s is repeated", service.Name()))
+				}
+				providerSchema[service.Name()] = convertToTypeSet(service.ProviderSchemaEntry())
+			}
+		}
+
+		providerSchema["iam_token"] = &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_IAM_TOKEN", ""),
+			Description: "The IAM token to be used with the client(s)",
+		}
+
+		providerSchema["bmaas_resources_available"] = &schema.Schema{
+			Type:        schema.TypeBool,
+			Optional:    true,
+			Default:     false,
+			Description: "Toggle bmaas provider client and resource creation, this will require a .gltform file",
 		}
 
 		p := schema.Provider{
-			Schema: map[string]*schema.Schema{
-				"iam_token": {
-					Type:        schema.TypeString,
-					Optional:    true,
-					DefaultFunc: schema.EnvDefaultFunc("HPEGL_IAM_TOKEN", ""),
-					Description: "The IAM token to be used with the client(s)",
-				},
-				"caas_api_url": {
-					Type:        schema.TypeString,
-					Optional:    true,
-					Description: "HPEGL CaaS API URL",
-				},
-				"bmaas_resources_available": {
-					Type:        schema.TypeBool,
-					Optional:    true,
-					Default:     false,
-					Description: "Toggle bmaas provider client and resource creation, this will require a .gltform file",
-				},
-			},
-
+			Schema:         providerSchema,
 			ResourcesMap:   resources,
 			DataSourcesMap: dataSources,
 			// Don't use the following field, experimental
@@ -86,4 +78,17 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 // For use in service provider repos
 func ServiceRegistrationSlice(reg registration.ServiceRegistration) []registration.ServiceRegistration {
 	return []registration.ServiceRegistration{reg}
+}
+
+// convertToTypeSet helper function to take the *schema.Resource for a service and convert
+// it into the element type of a TypeSet with exactly one element
+func convertToTypeSet(r *schema.Resource) *schema.Schema {
+	return &schema.Schema{
+		Type:     schema.TypeSet,
+		Optional: true,
+		// Note that we only allow one of these sets, this is very important
+		MaxItems: 1,
+		// We put the *schema.Resource here
+		Elem: r,
+	}
 }

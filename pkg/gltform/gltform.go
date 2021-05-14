@@ -40,6 +40,42 @@ func GetGLConfig() (gljwt *Gljwt, err error) {
 	return gljwt, err
 }
 
+// WriteGLConfigLocally takes a map[string]interface{} which will normally come from a
+// service block in the provider stanza along with a GL IAM token and writes out
+// a .gltform file in the directory from which terraform is being run.  See the use
+// of thie function for bmaas in terraform-provider-hpegl.
+func WriteGLConfigLocally(d map[string]interface{}, token string) error {
+	config := &Gljwt{
+		// If space_name isn't present, we'll just write out ""
+		SpaceName: d["space_name"].(string),
+		ProjectID: d["project_id"].(string),
+		RestURL:   d["rest_url"].(string),
+		Token:     token,
+	}
+
+	// Marshal config
+	b, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	// Write out marshalled config into local .gltform
+	workingDir, _ := os.Getwd()
+	f, err := os.Create(filepath.Clean(filepath.Join(workingDir, fileExtension)))
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	_, err = f.Write(b)
+	if err != nil {
+		return err
+	}
+
+	return f.Sync()
+}
+
 func loadGLConfig(dir string) (*Gljwt, error) {
 	f, err := os.Open(filepath.Clean(filepath.Join(dir, fileExtension)))
 	if err != nil {
