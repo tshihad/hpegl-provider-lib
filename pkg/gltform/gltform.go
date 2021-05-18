@@ -43,7 +43,7 @@ func GetGLConfig() (gljwt *Gljwt, err error) {
 // WriteGLConfigLocally takes a map[string]interface{} which will normally come from a
 // service block in the provider stanza along with a GL IAM token and writes out
 // a .gltform file in the directory from which terraform is being run.  See the use
-// of thie function for bmaas in terraform-provider-hpegl.
+// of this function for bmaas in terraform-provider-hpegl.
 func WriteGLConfigLocally(d map[string]interface{}, token string) error {
 	config := &Gljwt{
 		// If space_name isn't present, we'll just write out ""

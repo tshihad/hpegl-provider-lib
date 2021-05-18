@@ -13,13 +13,13 @@ type ServiceRegistration interface {
 	// set the name used for this service's entry in the provider schema
 	Name() string
 
-	// SupportedDataSources returns the supported Data Sources supported by this Service
+	// SupportedDataSources returns the supported Data Sources implemented by this Service
 	SupportedDataSources() map[string]*schema.Resource
 
-	// SupportedResources returns the supported Resources supported by this Service
+	// SupportedResources returns the supported Resources implemented by this Service
 	SupportedResources() map[string]*schema.Resource
 
-	// ProviderSchemaEntry returns the provider-level resource schema entry for this service
+	// ProviderSchemaEntry returns the provider-level resource schema block for this service
 	// We will convert this into a schema.Schema of TypeSet in the provider
 	// These blocks are marked as optional, it is up to the service-provider code to check that
 	// the relevant service block is present if it is needed.

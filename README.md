@@ -140,7 +140,7 @@ func GetClientFromMetaMap(meta interface{}) (*Client, error) {
 ```
 
 Note the following:
-* We define an IntialiaseClient{} struct that implements the client.Initialisation interface
+* We define an IntialiseClient{} struct that implements the client.Initialisation interface
 * We have a Client{} struct that contains:
     * An instance of a service client
     * An IAMToken for use with the client <br>
@@ -214,8 +214,8 @@ func clusterBlueprintDeleteContext(ctx context.Context, d *schema.ResourceData, 
 Note that GetClientFromMetaMap can return an error.  This is because the example service shown here uses a
 [service block in the provider stanza](#service-block-in-the-provider-stanza).
 These blocks are optional, since a customer may not want to use
-the related service in a terraform run.  These blocks are intended for use with client initialisation.
-If a service needs a provider block for initialisation and one isn't present then we expect the NewClient()
+the related service in a terraform run.  The blocks are intended for use with client initialisation.
+If a service needs a provider block for client initialisation and one isn't present then we expect the NewClient()
 function to return nil.  The GetClientFromMetaMap() function will return an error if the meta-map entry for
 the service is nil.  By raising a diag.FromErr with this error Terraform will display the error message to
 the user on the console, who can take action (i.e. add a service block to the provider stanza).
@@ -559,7 +559,7 @@ Note the following:
 
 The *schema.Resource returned by ProviderSchemaEntry is added to the map[string]*schema.Schema{} map as a
 TypeSet with a maximum size of 1 with the key provided by the Name() function.  Using a TypeSet in this way
-- i.e. with a maximum size of 1 - seems to be the canonical way of add configuration blocks to
+- i.e. with a maximum size of 1 - seems to be the canonical way of adding configuration blocks to
 terraform.  Note the following:
   
 * The intention is that this block will be used for client initialisation in NewClient()
