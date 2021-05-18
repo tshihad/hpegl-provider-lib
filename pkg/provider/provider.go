@@ -27,9 +27,17 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 		providerSchema := make(map[string]*schema.Schema)
 		for _, service := range reg {
 			for k, v := range service.SupportedDataSources() {
+				// We panic is the data-source name k is repeated in dataSources
+				if _, ok := dataSources[k]; ok {
+					panic(fmt.Sprintf("data-source name %s is repeated", k))
+				}
 				dataSources[k] = v
 			}
 			for k, v := range service.SupportedResources() {
+				// We panic is the resource name k is repeated in resources
+				if _, ok := resources[k]; ok {
+					panic(fmt.Sprintf("resource name %s is repeated", k))
+				}
 				resources[k] = v
 			}
 
