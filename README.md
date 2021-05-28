@@ -15,6 +15,15 @@
             - [Resource and data-source naming](#resource-and-data-source-naming)
             - [Service block in the provider stanza](#service-block-in-the-provider-stanza)
         + [Use in hpegl provider](#use-in-hpegl-provider-3)
+    * [pkg/token](#pkgtoken)
+        + [Introduction](#introduction-1)
+        + [pkg/token/common](#pkgtokencommon)
+        + [pkg/token/retrieve](#pkgtokenretrieve)
+            - [Use in service provider repos](#use-in-service-provider-repos-4)
+            - [Use in hpegl provider](#use-in-hpegl-provider-4)
+        + [pkg/token/serviceclient](#pkgtokenserviceclient)
+            - [Use in service provider repos](#use-in-service-provider-repos-5)
+            - [Use in hpegl provider](#use-in-hpegl-provider-5)
 
 # hpegl-provider-lib
 
@@ -57,6 +66,7 @@ An example of this:
 package client
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -64,7 +74,8 @@ import (
 	"github.com/hpe-hcss/hpecli-generated-caas-client/pkg/mcaasapi"
 
 	"github.com/hpe-hcss/hpegl-provider-lib/pkg/client"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/gltform"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/retrieve"
 
 	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/constants"
 )
@@ -79,7 +90,6 @@ var _ client.Initialisation = (*InitialiseClient)(nil)
 // Client is the client struct that is used by the provider code
 type Client struct {
 	CaasClient *mcaasapi.APIClient
-	IAMToken   string
 }
 
 // InitialiseClient is imported by hpegl from each service repo
@@ -90,9 +100,6 @@ type InitialiseClient struct{}
 // The hpegl provider will put *Client at the value of keyForGLClientMap (returned by ServiceName) in
 // the map of clients that it creates and passes down to provider code.  hpegl executes NewClient for each service.
 func (i InitialiseClient) NewClient(r *schema.ResourceData) (interface{}, error) {
-	// Get token
-	token := r.Get("iam_token").(string)
-
 	// Get CaaS settings from the CaaS block
 	caasProviderSettings, err := client.GetServiceSettingsMap(constants.ServiceName, r)
 	if err != nil {
@@ -106,19 +113,10 @@ func (i InitialiseClient) NewClient(r *schema.ResourceData) (interface{}, error)
 		UserAgent:     "hpegl-terraform",
 	}
 
-	client := new(Client)
-	client.CaasClient = mcaasapi.NewAPIClient(&caasCfg)
+	cli := new(Client)
+	cli.CaasClient = mcaasapi.NewAPIClient(&caasCfg)
 
-	if token == "" {
-		gltoken, err := gltform.GetGLConfig()
-		if err != nil {
-			return nil, fmt.Errorf("Error reading GL token file:  %w", err)
-		}
-		token = gltoken.Token
-	}
-	client.IAMToken = token
-
-	return client, nil
+	return cli, nil
 }
 
 // ServiceName is used to return the value of keyForGLClientMap, for use by hpegl
@@ -132,11 +130,19 @@ func GetClientFromMetaMap(meta interface{}) (*Client, error) {
 	cli := meta.(map[string]interface{})[keyForGLClientMap]
 	if cli == nil {
 		return nil, fmt.Errorf("client is not initialised, make sure that caas block is defined in hpegl stanza")
-
 	}
 
 	return cli.(*Client), nil
 }
+
+// GetToken is a convenience function used by provider code to extract retrieve.TokenRetrieveFuncCtx from
+// the meta argument passed-in by terraform and execute it with the context ctx
+func GetToken(ctx context.Context, meta interface{}) (string, error) {
+	trf := meta.(map[string]interface{})[common.TokenRetrieveFunctionKey].(retrieve.TokenRetrieveFuncCtx)
+
+	return trf(ctx)
+}
+
 ```
 
 Note the following:
@@ -151,63 +157,66 @@ Note the following:
 * The unique key is returned by ServiceName()
 * We've added a GetClientFromMetaMap() convenience function that is used by provider CRUD code to
     return *Client from the meta interface passed-in to the CRUD code by terraform, like so:
-```go
-package resources
+    ```go
+    package resources
+    
+    import (
+    	"context"
+    
+    	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+    	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+    
+    	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/client"
+    )
+    
+    func ClusterBlueprint() *schema.Resource {
+    	return &schema.Resource{
+    		Schema:         nil,
+    		SchemaVersion:  0,
+    		StateUpgraders: nil,
+    		CreateContext:  clusterBlueprintCreateContext,
+    		ReadContext:    clusterBlueprintReadContext,
+    		// TODO figure out if and how a blueprint can be updated
+    		// Update:             clusterBlueprintUpdate,
+    		DeleteContext:      clusterBlueprintDeleteContext,
+    		CustomizeDiff:      nil,
+    		Importer:           nil,
+    		DeprecationMessage: "",
+    		Timeouts:           nil,
+    		Description:        "",
+    	}
+    }
+    
+    func clusterBlueprintCreateContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+    	_, err := client.GetClientFromMetaMap(meta)
+    	if err != nil {
+    		return diag.FromErr(err)
+    	}
+    
+    	return nil
+    }
+    
+    func clusterBlueprintReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+    	_, err := client.GetClientFromMetaMap(meta)
+    	if err != nil {
+    		return diag.FromErr(err)
+    	}
+    
+    	return nil
+    }
+    
+    func clusterBlueprintDeleteContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+    	_, err := client.GetClientFromMetaMap(meta)
+    	if err != nil {
+    		return diag.FromErr(err)
+    	}
+    
+    	return nil
+    }
+    ```
 
-import (
-	"context"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
-	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/client"
-)
-
-func ClusterBlueprint() *schema.Resource {
-	return &schema.Resource{
-		Schema:         nil,
-		SchemaVersion:  0,
-		StateUpgraders: nil,
-		CreateContext:  clusterBlueprintCreateContext,
-		ReadContext:    clusterBlueprintReadContext,
-		// TODO figure out if and how a blueprint can be updated
-		// Update:             clusterBlueprintUpdate,
-		DeleteContext:      clusterBlueprintDeleteContext,
-		CustomizeDiff:      nil,
-		Importer:           nil,
-		DeprecationMessage: "",
-		Timeouts:           nil,
-		Description:        "",
-	}
-}
-
-func clusterBlueprintCreateContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	_, err := client.GetClientFromMetaMap(meta)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
-}
-
-func clusterBlueprintReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	_, err := client.GetClientFromMetaMap(meta)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
-}
-
-func clusterBlueprintDeleteContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	_, err := client.GetClientFromMetaMap(meta)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
-}
-```
+Note that we've added a GetToken() convenience function that is used by provider CRUD code to fetch the
+[Token Retrieve Function](#pkgtokenretrieve) - see [here](#use-in-service-provider-repos-4)
 
 #### GetClientFromMetaMap function
 
@@ -305,36 +314,11 @@ type Gljwt struct {
 
 ### Use in service provider repos
 
-The major use of this file is with the bmaas/Quake provider code.  As mentioned above it is also used by
-Genesis tooling to share the IAM token with other services, like so:
-
-```go
-func (i InitialiseClient) NewClient(config provider.ConfigData) (interface{}, error) {
-	caasCfg := mcaasapi.Configuration{
-		BasePath:      config.CaaSAPIUrl,
-		DefaultHeader: make(map[string]string),
-		UserAgent:     "hpegl-terraform",
-	}
-
-	cli := new(Client)
-	cli.CaasClient = mcaasapi.NewAPIClient(&caasCfg)
-
-	if config.IAMToken == "" {
-		gltoken, err := gltform.GetGLConfig()
-		if err != nil {
-			return nil, fmt.Errorf("Error reading GL token file:  %w", err)
-		}
-		config.IAMToken = gltoken.Token
-	}
-	cli.IAMToken = config.IAMToken
-
-	return cli, nil
-}
-```
+The only use of this file is with the bmaas/Quake provider code.
 
 ### Use in hpegl provider
 
-This package isn't used by the hpegl provider
+This package is used by the hpegl provider to build a .gltform for use with bmaas.
 
 ## pkg/provider
 
@@ -360,6 +344,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
 	"github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/retrieve"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/serviceclient"
 
 	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/client"
 	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/resources"
@@ -375,11 +362,20 @@ func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // noli
 		if err != nil {
 			return nil, diag.Errorf("error in creating client: %s", err)
 		}
+		// Initialise token handler
+		h, err := serviceclient.NewHandler(d)
+		if err != nil {
+			return nil, diag.FromErr(err)
+		}
 
 		// Returning a map[string]interface{} with the Client from pkg.client at the
-		// key specified in that repo to ensure compatibility with the hpegl terraform
-		// provider
-		return map[string]interface{}{client.InitialiseClient{}.ServiceName(): cli}, nil
+		// key specified in that repo and with the token retrieve function at the key
+		// specified by the token package to ensure compatibility with the hpegl terraform
+		// provider.
+		return map[string]interface{}{
+			client.InitialiseClient{}.ServiceName(): cli,
+			common.TokenRetrieveFunctionKey:         retrieve.NewTokenRetrieveFunc(h),
+		}, nil
 	}
 }
 
@@ -391,8 +387,10 @@ Note the following:
   
 * providerConfigure returns a schema.ConfigureContextFunc which is used to configure the service client.  The
     client.InitialiseClient{} struct is the service implementation of the client Initialisation interface.
-    Note that to ensure compatibility with the hpegl provider the client created by the InitialiseClient{}.NewClient()
-    function is added to map[string]interface{} map at the key given by InitialiseClient{}.ServiceName()
+    We add code to initialise the IAM token Handler, use it to create a Token Retrieve Function and put it in
+    a map[string]interface{} at the expected key. The client created by the InitialiseClient{}.NewClient()
+    function is added to map[string]interface{} map at the key given by InitialiseClient{}.ServiceName().  This is
+    to ensure compatibility with the hpegl provider.
   
 ProviderFunc() above can then be used to create a "dummy" service-specific provider as follows:
 ```go
@@ -443,10 +441,9 @@ func ProviderFunc() plugin.ProviderFunc {
 
 func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // nolint staticcheck
 	return func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-		return client.NewClientMap(d)
+		return client.NewClientMap(ctx, d)
 	}
 }
-
 ```
 
 This ProviderFunc is used to create the hpegl Terraform provider:
@@ -593,5 +590,194 @@ func SupportedServices() []registration.ServiceRegistration {
 		rescaas.Registration{},
 		resquake.Registration{},
 	}
+}
+```
+
+## pkg/token
+
+### Introduction
+This directory contains code to create and refresh tokens.  Every token creation method will define a handler
+specific to it.  The way that this works is as follows:
+
+* Each handler creates two channels:
+    * a "resultCh" which is used to communicate the token along with an error in a Result struct to a function
+      used by provider code which listens on the channel
+    * an "exitCh" which is used by provider code to signal to the handler thread which presents tokens on "resultCh"
+      to exit
+* Each handler creates a thread (a go routine) which presents the Result struct obtained by running a "retrieve" function
+    on "resultCh".  The thread also listens for a signal on "exitCh" to exit
+* The handler "retrieve" function stashes a token in the handler.  If the token is about to expire in common.TimeToTokenExpiry
+    seconds or less then a new token is obtained from IAM.
+* The handler implements a simple interface common.TokenChannelInterface which returns the "resultCh" and the "exitCh"
+* The hpegl provider instantiates the appropriate handler, and passes it down to retrieve.NewTokenRetrieveFunc which expects
+    to get a common.TokenChannelInterface.  The interface is executed to get the "resultCh" and the "exitCh".
+    A function of type TokenRetrieveFuncCtx is returned which takes a context and uses the channels passed-in to either return
+    a token (and error) or signal the handler retrieve function to exit by writing into "exitCh" if the context is cancelled.
+* The TokenRetrieveFuncCtx created is stashed in the map[string]interface{} passed down to the provider code at the
+    common.TokenRetrieveFunctionKey key for execution by the provider code.
+  
+### pkg/token/common
+
+Constants, a struct and an interface that are used by the retrieve package and by all token Handlers:
+```go
+package common
+
+const (
+	TokenRetrieveFunctionKey = "tokenRetrieveFunc"
+	// TimeToTokenExpiry is seconds in int64, not time.Second
+	// This constant should be used in all handler code
+	TimeToTokenExpiry = 60
+)
+
+// Result the result struct sent back on the resultCh of a token Handler
+type Result struct {
+	Token string
+	Err   error
+}
+
+// TokenChannelInterface the interface that is implemented by a token Handler
+// This interface is used in retrieve.NewTokenRetrieveFunc
+type TokenChannelInterface interface {
+	TokenChannels() (chan Result, chan int)
+}
+```
+
+### pkg/token/retrieve
+
+The retrieve package used to construct a retrieve.TokenRetrieveFuncCtx function for use in terraform provider
+code.
+
+#### Use in service provider repos
+
+In service provider code we assert that the object stored in the map[string]interface{} passed down from Terraform
+at the key common.TokenRetrieveFunctionKey is of type retrieve.TokenRetrieveFuncCtx and execute it.  This
+is wrapped-up in a convenience function GetToken as follows:
+
+```go
+// GetToken is a convenience function used by provider code to extract retrieve.TokenRetrieveFuncCtx from
+// the meta argument passed-in by terraform and execute it with the context ctx
+func GetToken(ctx context.Context, meta interface{}) (string, error) {
+    trf := meta.(map[string]interface{})[common.TokenRetrieveFunctionKey].(retrieve.TokenRetrieveFuncCtx)
+
+    return trf(ctx)
+}
+```
+
+This function is executed in CRUD code:
+```go
+func clusterBlueprintCreateContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	_, err := client.GetClientFromMetaMap(meta)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	_, err = client.GetToken(ctx, meta)
+	if err != nil {
+		return diag.Errorf("Error in getting token: %s", err)
+	}
+
+	return nil
+}
+```
+
+#### Use in hpegl provider
+
+In the hpegl provider we use retrieve.NewTokenRetrieveFunc with a token Handler to create the retrieve.TokenRetrieveFuncCtx
+and put in the map[string]interface{} at key common.TokenRetrieveFunctionKey:
+
+```go
+func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]interface{}, diag.Diagnostics) {
+	c := make(map[string]interface{})
+
+	// Initialise token handler
+	h, err := serviceclient.NewHandler(d)
+	if err != nil {
+		return nil, diag.FromErr(err)
+	}
+
+	// Get token retrieve func
+	trf := retrieve.NewTokenRetrieveFunc(h)
+	c[common.TokenRetrieveFunctionKey] = trf
+
+    ...
+	
+	return c, nil
+}
+```
+
+### pkg/token/serviceclient
+
+This is an implementation of a token Handler that uses service-client creds to get a token from IAM.
+
+#### Use in service provider repos
+
+In the service provider repos we use this Handler when creating a "dummy-provider", like so:
+```go
+package testutils
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/retrieve"
+	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/serviceclient"
+
+	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/client"
+	"github.com/hpe-hcss/poc-caas-terraform-resources/pkg/resources"
+)
+
+func ProviderFunc() plugin.ProviderFunc {
+	return provider.NewProviderFunc(provider.ServiceRegistrationSlice(resources.Registration{}), providerConfigure)
+}
+
+func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // nolint staticcheck
+	return func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+		cli, err := client.InitialiseClient{}.NewClient(d)
+		if err != nil {
+			return nil, diag.Errorf("error in creating client: %s", err)
+		}
+		// Initialise token handler
+		h, err := serviceclient.NewHandler(d)
+		if err != nil {
+			return nil, diag.FromErr(err)
+		}
+
+		// Returning a map[string]interface{} with the Client from pkg.client at the
+		// key specified in that repo and with the token retrieve function at the key
+		// specified by the token package to ensure compatibility with the hpegl terraform
+		// provider.
+		return map[string]interface{}{
+			client.InitialiseClient{}.ServiceName(): cli,
+			common.TokenRetrieveFunctionKey:         retrieve.NewTokenRetrieveFunc(h),
+		}, nil
+	}
+}
+```
+
+#### Use in hpegl provider
+
+In the hpegl provider we initialise this Handler for use in creating retrieve.TokenRetrieveFuncCtx:
+
+```go
+func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]interface{}, diag.Diagnostics) {
+	c := make(map[string]interface{})
+
+	// Initialise token handler
+	h, err := serviceclient.NewHandler(d)
+	if err != nil {
+		return nil, diag.FromErr(err)
+	}
+
+	// Get token retrieve func
+	trf := retrieve.NewTokenRetrieveFunc(h)
+	c[common.TokenRetrieveFunctionKey] = trf
+
+    ...
+	
+	return c, nil
 }
 ```

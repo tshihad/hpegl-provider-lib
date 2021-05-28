@@ -52,11 +52,40 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 			}
 		}
 
+		// TODO this needs to be removed
 		providerSchema["iam_token"] = &schema.Schema{
 			Type:        schema.TypeString,
 			Optional:    true,
 			DefaultFunc: schema.EnvDefaultFunc("HPEGL_IAM_TOKEN", ""),
 			Description: "The IAM token to be used with the client(s)",
+		}
+
+		providerSchema["iam_service_url"] = &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_IAM_SERVICE_URL", "https://client.greenlake.hpe.com/api/iam"),
+			Description: "The IAM service URL to be used to generate tokens, defaults to production GLC",
+		}
+
+		providerSchema["tenant_id"] = &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_TENANT_ID", ""),
+			Description: "The tenant-id to be used",
+		}
+
+		providerSchema["user_id"] = &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_USER_ID", ""),
+			Description: "The user id to be used",
+		}
+
+		providerSchema["user_secret"] = &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_USER_SECRET", ""),
+			Description: "The user secret to be used",
 		}
 
 		providerSchema["bmaas_resources_available"] = &schema.Schema{

@@ -21,8 +21,9 @@ type Gljwt struct {
 	ProjectID string `yaml:"project_id"`
 	// RestURL - the URL to be used for bmaas, at present it refers to a Quake portal URL
 	RestURL string `yaml:"rest_url"`
+	// TODO remove this entry once we've switched quake-client over to using this package
 	// Token - the GL IAM token
-	Token string `yaml:"access_token"`
+	Token string `yaml:"access_token,omitempty"`
 }
 
 // GetGLConfig - reads the .gltform file, note that the .gltform can be in the home directory of the
@@ -41,16 +42,15 @@ func GetGLConfig() (gljwt *Gljwt, err error) {
 }
 
 // WriteGLConfigLocally takes a map[string]interface{} which will normally come from a
-// service block in the provider stanza along with a GL IAM token and writes out
-// a .gltform file in the directory from which terraform is being run.  See the use
-// of this function for bmaas in terraform-provider-hpegl.
-func WriteGLConfigLocally(d map[string]interface{}, token string) error {
+// service block in the provider stanza and writes out a .gltform file in the directory
+// from which terraform is being run.  See the use of this function for bmaas in
+// terraform-provider-hpegl.
+func WriteGLConfigLocally(d map[string]interface{}) error {
 	config := &Gljwt{
 		// If space_name isn't present, we'll just write out ""
 		SpaceName: d["space_name"].(string),
 		ProjectID: d["project_id"].(string),
 		RestURL:   d["rest_url"].(string),
-		Token:     token,
 	}
 
 	// Marshal config
