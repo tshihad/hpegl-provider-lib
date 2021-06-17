@@ -73,9 +73,9 @@ import (
 
 	"github.com/hpe-hcss/hpecli-generated-caas-client/pkg/mcaasapi"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/client"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/retrieve"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/client"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 
 	"github.com/hpe-hcss/caas-terraform-resources/pkg/constants"
 )
@@ -239,7 +239,7 @@ hpegl.  The slice is defined as follows:
 package clients
 
 import (
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/client"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/client"
 
 	clicaas "github.com/hpe-hcss/caas-terraform-resources/pkg/client"
 )
@@ -259,7 +259,7 @@ package client
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
 
 	quake "github.com/quattronetworks/quake-client/pkg/terraform/configuration"
 
@@ -343,10 +343,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/retrieve"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/serviceclient"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
 
 	"github.com/hpe-hcss/caas-terraform-resources/pkg/client"
 	"github.com/hpe-hcss/caas-terraform-resources/pkg/resources"
@@ -429,7 +429,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
 
 	"github.com/hpe-hcss/terraform-provider-hpegl/internal/client"
 	"github.com/hpe-hcss/terraform-provider-hpegl/internal/services/resources"
@@ -504,7 +504,7 @@ import (
 
 	"github.com/hpe-hcss/caas-terraform-resources/pkg/constants"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/registration"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/registration"
 
 	"github.com/hpe-hcss/caas-terraform-resources/internal/resources"
 )
@@ -578,7 +578,7 @@ interface that is passed-in to provider.NewProviderFunc:
 package resources
 
 import (
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/registration"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/registration"
 
 	resquake "github.com/quattronetworks/quake-client/pkg/terraform/registration"
 
@@ -721,10 +721,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/provider"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/retrieve"
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/serviceclient"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
 
 	"github.com/hpe-hcss/caas-terraform-resources/pkg/client"
 	"github.com/hpe-hcss/caas-terraform-resources/pkg/resources"

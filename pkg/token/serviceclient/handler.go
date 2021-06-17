@@ -12,7 +12,7 @@ import (
 
 	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
 
-	"github.com/hpe-hcss/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
 )
 
 const retryLimit = 3

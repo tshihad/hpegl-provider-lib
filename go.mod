@@ -1,4 +1,4 @@
-module github.com/hpe-hcss/hpegl-provider-lib
+module github.com/hewlettpackard/hpegl-provider-lib
 
 go 1.15
 
