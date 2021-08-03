@@ -13,6 +13,7 @@ import (
 	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/issuertoken"
 )
 
 const retryLimit = 3
@@ -24,6 +25,7 @@ var _ common.TokenChannelInterface = (*Handler)(nil)
 type Handler struct {
 	token        string
 	tenantID     string
+	issuerURL    string
 	clientID     string
 	clientSecret string
 	numRetries   int
@@ -51,6 +53,7 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	h.tenantID = d.Get("tenant_id").(string)
 	h.clientID = d.Get("user_id").(string)
 	h.clientSecret = d.Get("user_secret").(string)
+	h.issuerURL = d.Get("issuer_url").(string)
 
 	// run overrides
 	for _, opt := range opts {
@@ -156,8 +159,15 @@ func (h *Handler) retrieveToken() common.Result {
 
 // generateToken simple function to call the API client's GenerateToken
 func (h *Handler) generateToken() (string, bool, error) {
+	var token string
+	var err error
+
 	// TODO pass a context down to here
-	token, err := h.client.GenerateToken(context.Background(), h.tenantID, h.clientID, h.clientSecret)
+	if h.issuerURL != "" {
+		token, err = issuertoken.GenerateIssuerToken(context.Background(), h.issuerURL, h.clientID, h.clientSecret)
+	} else {
+		token, err = h.client.GenerateToken(context.Background(), h.tenantID, h.clientID, h.clientSecret)
+	}
 
 	// If this is a retryable error check to see if we've reached our retryLimit or not, if we can retry again
 	// return true

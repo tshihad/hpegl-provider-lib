@@ -60,6 +60,14 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 				can be set by HPEGL_IAM_SERVICE_URL env-var`,
 		}
 
+		providerSchema["issuer_url"] = &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_ISSUER_URL", ""),
+			Description: `The IAM issuer URL to be used to generate tokens, if issuer URL is set provider 
+			will automatically use the issuer endpoint for token generation.`,
+		}
+
 		providerSchema["tenant_id"] = &schema.Schema{
 			Type:        schema.TypeString,
 			Optional:    true,
