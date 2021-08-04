@@ -23,15 +23,16 @@ var _ common.TokenChannelInterface = (*Handler)(nil)
 
 // Handler the handler for service-client creds
 type Handler struct {
-	token        string
-	tenantID     string
-	issuerURL    string
-	clientID     string
-	clientSecret string
-	numRetries   int
-	client       identityclient.IdentityAPI
-	resultCh     chan common.Result
-	exitCh       chan int
+	iamServiceURL       string
+	token               string
+	tenantID            string
+	clientID            string
+	clientSecret        string
+	vendedServiceClient bool
+	numRetries          int
+	client              identityclient.IdentityAPI
+	resultCh            chan common.Result
+	exitCh              chan int
 }
 
 // CreateOpt - function option definition
@@ -49,11 +50,12 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	h := new(Handler)
 
 	// set Handler fields
-	h.client = identityclient.New(d.Get("iam_service_url").(string))
+	h.iamServiceURL = d.Get("iam_service_url").(string)
+	h.client = identityclient.New(h.iamServiceURL)
 	h.tenantID = d.Get("tenant_id").(string)
 	h.clientID = d.Get("user_id").(string)
 	h.clientSecret = d.Get("user_secret").(string)
-	h.issuerURL = d.Get("issuer_url").(string)
+	h.vendedServiceClient = d.Get("api_vended_service_client").(bool)
 
 	// run overrides
 	for _, opt := range opts {
@@ -163,8 +165,8 @@ func (h *Handler) generateToken() (string, bool, error) {
 	var err error
 
 	// TODO pass a context down to here
-	if h.issuerURL != "" {
-		token, err = issuertoken.GenerateIssuerToken(context.Background(), h.issuerURL, h.clientID, h.clientSecret)
+	if h.vendedServiceClient {
+		token, err = issuertoken.GenerateIssuerToken(context.Background(), h.iamServiceURL, h.clientID, h.clientSecret)
 	} else {
 		token, err = h.client.GenerateToken(context.Background(), h.tenantID, h.clientID, h.clientSecret)
 	}
