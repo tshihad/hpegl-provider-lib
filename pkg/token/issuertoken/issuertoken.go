@@ -19,6 +19,25 @@ type TokenResponse struct {
 	Scope       string `json:"scope"`
 }
 
+func doRetries(call func() (*http.Response, error), retries int) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	for {
+		resp, err = call()
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode != http.StatusInternalServerError || retries == 0 {
+			break
+		}
+
+		retries--
+	}
+	return resp, nil
+}
+
 func GenerateIssuerToken(ctx context.Context, issuerURL, clientID, clientSecret string) (string, error) {
 	params := url.Values{}
 	params.Add("client_id", clientID)
@@ -33,7 +52,9 @@ func GenerateIssuerToken(ctx context.Context, issuerURL, clientID, clientSecret 
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRetries(func() (*http.Response, error) {
+		return http.DefaultClient.Do(req)
+	}, 1)
 	if err != nil {
 		return "", err
 	}
