@@ -13,6 +13,7 @@ import (
 	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/issuertoken"
 )
 
 const retryLimit = 3
@@ -22,14 +23,16 @@ var _ common.TokenChannelInterface = (*Handler)(nil)
 
 // Handler the handler for service-client creds
 type Handler struct {
-	token        string
-	tenantID     string
-	clientID     string
-	clientSecret string
-	numRetries   int
-	client       identityclient.IdentityAPI
-	resultCh     chan common.Result
-	exitCh       chan int
+	iamServiceURL       string
+	token               string
+	tenantID            string
+	clientID            string
+	clientSecret        string
+	vendedServiceClient bool
+	numRetries          int
+	client              identityclient.IdentityAPI
+	resultCh            chan common.Result
+	exitCh              chan int
 }
 
 // CreateOpt - function option definition
@@ -47,10 +50,12 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	h := new(Handler)
 
 	// set Handler fields
-	h.client = identityclient.New(d.Get("iam_service_url").(string))
+	h.iamServiceURL = d.Get("iam_service_url").(string)
+	h.client = identityclient.New(h.iamServiceURL)
 	h.tenantID = d.Get("tenant_id").(string)
 	h.clientID = d.Get("user_id").(string)
 	h.clientSecret = d.Get("user_secret").(string)
+	h.vendedServiceClient = d.Get("api_vended_service_client").(bool)
 
 	// run overrides
 	for _, opt := range opts {
@@ -156,8 +161,15 @@ func (h *Handler) retrieveToken() common.Result {
 
 // generateToken simple function to call the API client's GenerateToken
 func (h *Handler) generateToken() (string, bool, error) {
+	var token string
+	var err error
+
 	// TODO pass a context down to here
-	token, err := h.client.GenerateToken(context.Background(), h.tenantID, h.clientID, h.clientSecret)
+	if h.vendedServiceClient {
+		token, err = issuertoken.GenerateIssuerToken(context.Background(), h.iamServiceURL, h.clientID, h.clientSecret)
+	} else {
+		token, err = h.client.GenerateToken(context.Background(), h.tenantID, h.clientID, h.clientSecret)
+	}
 
 	// If this is a retryable error check to see if we've reached our retryLimit or not, if we can retry again
 	// return true

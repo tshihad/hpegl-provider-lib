@@ -60,6 +60,13 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 				can be set by HPEGL_IAM_SERVICE_URL env-var`,
 		}
 
+		providerSchema["api_vended_service_client"] = &schema.Schema{
+			Type:        schema.TypeBool,
+			Optional:    true,
+			DefaultFunc: schema.EnvDefaultFunc("HPEGL_API_VENDED_SERVICE_CLIENT", true),
+			Description: ``,
+		}
+
 		providerSchema["tenant_id"] = &schema.Schema{
 			Type:        schema.TypeString,
 			Optional:    true,
