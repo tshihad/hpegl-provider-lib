@@ -38,10 +38,7 @@ func doRetries(call func() (*http.Response, error), retries int) (*http.Response
 			break
 		}
 
-		if resp.StatusCode == http.StatusTooManyRequests {
-			time.Sleep(3 * time.Second)
-		}
-
+		time.Sleep(3 * time.Second)
 		retries--
 	}
 
