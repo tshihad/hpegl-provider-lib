@@ -8,8 +8,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hpe-hcss/errors/pkg/errors"
+)
+
+const (
+	retryLimit = 3
 )
 
 type TokenResponse struct {
@@ -29,12 +34,14 @@ func doRetries(call func() (*http.Response, error), retries int) (*http.Response
 			return nil, err
 		}
 
-		if resp.StatusCode != http.StatusInternalServerError || retries == 0 {
+		if !isStatusRetryable(resp.StatusCode) || retries == 0 {
 			break
 		}
 
+		time.Sleep(3 * time.Second)
 		retries--
 	}
+
 	return resp, nil
 }
 
@@ -54,7 +61,7 @@ func GenerateIssuerToken(ctx context.Context, issuerURL, clientID, clientSecret 
 
 	resp, err := doRetries(func() (*http.Response, error) {
 		return http.DefaultClient.Do(req)
-	}, 1)
+	}, retryLimit)
 	if err != nil {
 		return "", err
 	}
@@ -102,4 +109,12 @@ func GenerateIssuerToken(ctx context.Context, issuerURL, clientID, clientSecret 
 	}
 
 	return token.AccessToken, nil
+}
+
+func isStatusRetryable(statusCode int) bool {
+	if statusCode == http.StatusInternalServerError || statusCode == http.StatusTooManyRequests {
+		return true
+	}
+
+	return false
 }
