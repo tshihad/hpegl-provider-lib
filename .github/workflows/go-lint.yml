@@ -1,0 +1,16 @@
+# (c) Copyright 2021 Hewlett Packard Enterprise Development LP
+
+name: golangci-lint
+on: [push, pull_request]
+jobs:
+  golangci:
+    runs-on: ubuntu-latest
+    steps:
+      -      
+        name: Checkout
+        uses: actions/checkout@v2
+      - 
+        name: Lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.42
