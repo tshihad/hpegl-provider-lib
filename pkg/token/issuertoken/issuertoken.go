@@ -24,6 +24,26 @@ type TokenResponse struct {
 	Scope       string `json:"scope"`
 }
 
+type Client struct {
+	identityServiceURL string
+	httpClient         httpClient
+}
+
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// New creates a new identity Client object
+func New(identityServiceURL string) *Client {
+	client := &http.Client{Timeout: 10 * time.Second}
+	identityServiceURL = strings.TrimRight(identityServiceURL, "/")
+
+	return &Client{
+		identityServiceURL: identityServiceURL,
+		httpClient:         client,
+	}
+}
+
 func doRetries(call func() (*http.Response, error), retries int) (*http.Response, error) {
 	var resp *http.Response
 	var err error
@@ -45,14 +65,14 @@ func doRetries(call func() (*http.Response, error), retries int) (*http.Response
 	return resp, nil
 }
 
-func GenerateIssuerToken(ctx context.Context, issuerURL, clientID, clientSecret string) (string, error) {
+func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSecret string) (string, error) {
 	params := url.Values{}
 	params.Add("client_id", clientID)
 	params.Add("client_secret", clientSecret)
 	params.Add("grant_type", "client_credentials")
 	params.Add("scope", "hpe-tenant")
 
-	url := fmt.Sprintf("%s/v1/token", issuerURL)
+	url := fmt.Sprintf("%s/v1/token", c.identityServiceURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(params.Encode()))
 	if err != nil {
 		return "", err
@@ -60,7 +80,7 @@ func GenerateIssuerToken(ctx context.Context, issuerURL, clientID, clientSecret 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := doRetries(func() (*http.Response, error) {
-		return http.DefaultClient.Do(req)
+		return c.httpClient.Do(req)
 	}, retryLimit)
 	if err != nil {
 		return "", err
