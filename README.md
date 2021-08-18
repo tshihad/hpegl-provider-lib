@@ -77,7 +77,7 @@ import (
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 
-	"github.com/hpe-hcss/caas-terraform-resources/pkg/constants"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/constants"
 )
 
 // keyForGLClientMap is the key in the map[string]interface{} that is passed down by hpegl used to store *Client
@@ -166,7 +166,7 @@ Note the following:
     	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
     	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
     
-    	"github.com/hpe-hcss/caas-terraform-resources/pkg/client"
+    	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
     )
     
     func ClusterBlueprint() *schema.Resource {
@@ -241,7 +241,7 @@ package clients
 import (
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/client"
 
-	clicaas "github.com/hpe-hcss/caas-terraform-resources/pkg/client"
+	clicaas "github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
 )
 
 func InitialiseClients() []client.Initialisation {
@@ -348,8 +348,8 @@ import (
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
 
-	"github.com/hpe-hcss/caas-terraform-resources/pkg/client"
-	"github.com/hpe-hcss/caas-terraform-resources/pkg/resources"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/resources"
 )
 
 func ProviderFunc() plugin.ProviderFunc {
@@ -399,7 +399,7 @@ package main
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
-	"github.com/hpe-hcss/caas-terraform-resources/internal/test-utils"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/internal/test-utils"
 )
 
 func main() {
@@ -502,11 +502,11 @@ package resources
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	"github.com/hpe-hcss/caas-terraform-resources/pkg/constants"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/constants"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/registration"
 
-	"github.com/hpe-hcss/caas-terraform-resources/internal/resources"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/internal/resources"
 )
 
 // Assert that Registration implements the ServiceRegistration interface
@@ -582,7 +582,7 @@ import (
 
 	resquake "github.com/quattronetworks/quake-client/pkg/terraform/registration"
 
-	rescaas "github.com/hpe-hcss/caas-terraform-resources/pkg/resources"
+	rescaas "github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/resources"
 )
 
 func SupportedServices() []registration.ServiceRegistration {
@@ -726,8 +726,8 @@ import (
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
 
-	"github.com/hpe-hcss/caas-terraform-resources/pkg/client"
-	"github.com/hpe-hcss/caas-terraform-resources/pkg/resources"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
+	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/resources"
 )
 
 func ProviderFunc() plugin.ProviderFunc {
