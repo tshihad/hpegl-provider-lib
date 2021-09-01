@@ -73,15 +73,17 @@ func Schema() map[string]*schema.Schema {
 		Type:        schema.TypeString,
 		Optional:    true,
 		DefaultFunc: schema.EnvDefaultFunc("HPEGL_IAM_SERVICE_URL", "https://client.greenlake.hpe.com/api/iam"),
-		Description: `The IAM service URL to be used to generate tokens, defaults to production GLC,
-			can be set by HPEGL_IAM_SERVICE_URL env-var`,
+		Description: `The IAM service URL to be used to generate tokens.  In the case of API-vended service clients
+            (the default) then this should be set to the "issuer url" for the client.  In the case of non-API-vended
+            service clients use the appropriate GL "client" URL. Can be set by HPEGL_IAM_SERVICE_URL env-var`,
 	}
 
 	providerSchema["api_vended_service_client"] = &schema.Schema{
 		Type:        schema.TypeBool,
 		Optional:    true,
 		DefaultFunc: schema.EnvDefaultFunc("HPEGL_API_VENDED_SERVICE_CLIENT", true),
-		Description: ``,
+		Description: `Declare if the service-client being used is an API-vended one or not.  Defaults to "true"
+            i.e. the client is API-vended.  The value can be set using the HPEGL_API_VENDED_SERVICE_CLIENT env-var.`,
 	}
 
 	providerSchema["tenant_id"] = &schema.Schema{

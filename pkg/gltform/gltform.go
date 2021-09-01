@@ -41,11 +41,11 @@ func GetGLConfig() (gljwt *Gljwt, err error) {
 	return gljwt, err
 }
 
-// WriteGLConfigLocally takes a map[string]interface{} which will normally come from a
+// WriteGLConfig takes a map[string]interface{} which will normally come from a
 // service block in the provider stanza and writes out a .gltform file in the directory
-// from which terraform is being run.  See the use of this function for bmaas in
-// terraform-provider-hpegl.
-func WriteGLConfigLocally(d map[string]interface{}) error {
+// from which terraform is being run and in the home directory.  See the use of this function
+// for bmaas in terraform-provider-hpegl.
+func WriteGLConfig(d map[string]interface{}) error {
 	config := &Gljwt{
 		// If space_name isn't present, we'll just write out ""
 		SpaceName: d["space_name"].(string),
@@ -59,9 +59,22 @@ func WriteGLConfigLocally(d map[string]interface{}) error {
 		return err
 	}
 
-	// Write out marshalled config into local .gltform
+	// Write out marshalled config into .gltform
+	homeDir, _ := os.UserHomeDir()
 	workingDir, _ := os.Getwd()
-	f, err := os.Create(filepath.Clean(filepath.Join(workingDir, fileExtension)))
+
+	for _, p := range []string{homeDir, workingDir} {
+		err = writeGLConfigToFile(b, p)
+		if err != nil {
+			break
+		}
+	}
+
+	return err
+}
+
+func writeGLConfigToFile(b []byte, dir string) error {
+	f, err := os.Create(filepath.Clean(filepath.Join(dir, fileExtension)))
 	if err != nil {
 		return err
 	}
