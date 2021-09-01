@@ -4,7 +4,7 @@ package utils
 
 import (
 	"os"
-		
+
 	"github.com/spf13/viper"
 )
 
