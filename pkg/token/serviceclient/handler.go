@@ -64,7 +64,7 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	if h.vendedServiceClient {
 		h.client = issuertoken.New(h.iamServiceURL)
 	} else {
-		h.client = identityclient.New(h.iamServiceURL)
+		h.client = identitytoken.New(h.iamServiceURL)
 	}
 
 	// run overrides
