@@ -13,6 +13,7 @@ import (
 	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/identitytoken"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/issuertoken"
 )
 
