@@ -13,6 +13,7 @@ import (
 	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/identitytoken"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/issuertoken"
 )
 
@@ -64,7 +65,7 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	if h.vendedServiceClient {
 		h.client = issuertoken.New(h.iamServiceURL)
 	} else {
-		h.client = identityclient.New(h.iamServiceURL)
+		h.client = identitytoken.New(h.iamServiceURL)
 	}
 
 	// run overrides
