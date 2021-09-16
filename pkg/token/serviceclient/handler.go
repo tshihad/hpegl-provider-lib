@@ -10,11 +10,10 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
-
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/identitytoken"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/issuertoken"
+	tokenutil "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/token-util"
 )
 
 const retryLimit = 3
@@ -138,7 +137,7 @@ func (h *Handler) retrieveToken() common.Result {
 		}
 
 		// Decode token
-		tokenDetails, err := identityclient.DecodeAccessToken(h.token)
+		tokenDetails, err := tokenutil.DecodeAccessToken(h.token)
 		if err != nil {
 			return common.Result{
 				Token: "",

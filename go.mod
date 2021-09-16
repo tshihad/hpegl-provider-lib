@@ -7,6 +7,7 @@ require (
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.5.0
 	github.com/hpe-hcss/errors v0.0.8
 	github.com/hpe-hcss/iam-lib v1.12.8
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/square/go-jose.v2 v2.5.1
