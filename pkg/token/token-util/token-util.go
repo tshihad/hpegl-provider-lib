@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2"
 )
 
@@ -40,12 +40,12 @@ func DecodeAccessToken(rawToken string) (Token, error) {
 	// us do cheap checks before possibly re-syncing keys.
 	payload, err := parseJWT(rawToken)
 	if err != nil {
-		log.Errorf("oidc: malformed jwt: %v", err)
+		log.Fatal(fmt.Sprintf("oidc: malformed jwt: %v", err))
 		return Token{}, fmt.Errorf("oidc: malformed jwt: %v", err)
 	}
 	var token Token
 	if err := json.Unmarshal(payload, &token); err != nil {
-		log.Errorf("oidc: failed to unmarshal claims: %v", err)
+		log.Fatal(fmt.Sprintf("oidc: failed to unmarshal claims: %v", err))
 		return Token{}, fmt.Errorf("oidc: failed to unmarshal claims: %v", err)
 	}
 
