@@ -14,7 +14,7 @@ import (
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
 
-	identityclient "github.com/hpe-hcss/iam-lib/pkg/identity-client"
+	tokenutil "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/token-util"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/square/go-jose.v2"
@@ -23,7 +23,7 @@ import (
 
 func generateTestToken(timeToExpiry int64) string {
 	timeNow := int64(0)
-	pars := identityclient.Token{
+	pars := tokenutil.Token{
 		Issuer:  "https://hpe-greenlake-tenant.okta.com/oauth2/default",
 		Subject: "clients/subject",
 		Expiry:  timeNow + timeToExpiry, IssuedAt: timeNow,
