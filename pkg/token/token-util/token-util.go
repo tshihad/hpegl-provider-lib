@@ -1,4 +1,4 @@
-//(C) Copyright 2019 Hewlett Packard Enterprise Development LP
+//(C) Copyright 2021 Hewlett Packard Enterprise Development LP
 
 package tokenutil
 
@@ -50,7 +50,7 @@ func DecodeAccessToken(rawToken string) (Token, error) {
 	}
 
 	if token.UserID != "" {
-		// Okta User token
+		// User token
 		token.Subject = "users/" + token.UserID
 	} else if token.ClientID != "" || token.KeycloakClientID != "" {
 		token.Subject = "clients/" + token.Subject
