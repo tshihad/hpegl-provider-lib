@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hpe-hcss/errors/pkg/errors"
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/errors"
 )
 
 const (
