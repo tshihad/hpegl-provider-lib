@@ -5,7 +5,6 @@ go 1.15
 require (
 	github.com/golang/mock v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.5.0
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/square/go-jose.v2 v2.5.1
