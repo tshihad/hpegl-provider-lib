@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/errors"
+	tokenutil "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/token-util"
 )
 
 const (
@@ -24,63 +24,22 @@ type TokenResponse struct {
 	Scope       string `json:"scope"`
 }
 
-type Client struct {
-	identityServiceURL string
-	httpClient         httpClient
-}
-
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// New creates a new identity Client object
-func New(identityServiceURL string) *Client {
-	client := &http.Client{Timeout: 10 * time.Second}
-	identityServiceURL = strings.TrimRight(identityServiceURL, "/")
-
-	return &Client{
-		identityServiceURL: identityServiceURL,
-		httpClient:         client,
-	}
-}
-
-func doRetries(call func() (*http.Response, error), retries int) (*http.Response, error) {
-	var resp *http.Response
-	var err error
-
-	for {
-		resp, err = call()
-		if err != nil {
-			return nil, err
-		}
-
-		if !isStatusRetryable(resp.StatusCode) || retries == 0 {
-			break
-		}
-
-		time.Sleep(3 * time.Second)
-		retries--
-	}
-
-	return resp, nil
-}
-
-func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSecret string) (string, error) {
+func GenerateToken(ctx context.Context, tenantID, clientID, clientSecret string, identityServiceURL string, httpClient tokenutil.HttpClient) (string, error) {
 	params := url.Values{}
 	params.Add("client_id", clientID)
 	params.Add("client_secret", clientSecret)
 	params.Add("grant_type", "client_credentials")
 	params.Add("scope", "hpe-tenant")
 
-	url := fmt.Sprintf("%s/v1/token", c.identityServiceURL)
+	url := fmt.Sprintf("%s/v1/token", identityServiceURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(params.Encode()))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := doRetries(func() (*http.Response, error) {
-		return c.httpClient.Do(req)
+	resp, err := tokenutil.DoRetries(func() (*http.Response, error) {
+		return httpClient.Do(req)
 	}, retryLimit)
 	if err != nil {
 		return "", err
@@ -129,12 +88,4 @@ func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSe
 	}
 
 	return token.AccessToken, nil
-}
-
-func isStatusRetryable(statusCode int) bool {
-	if statusCode == http.StatusInternalServerError || statusCode == http.StatusTooManyRequests {
-		return true
-	}
-
-	return false
 }

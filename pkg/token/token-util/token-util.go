@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/square/go-jose.v2"
 )
@@ -27,6 +29,10 @@ type Token struct {
 	AuthorizedParty  string `json:"azp"`
 	KeycloakClientID string `json:"clientId"`
 	IsHPE            bool   `json:"isHPE"`
+}
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
 }
 
 // DecodeAccessToken decodes the accessToken offline
@@ -72,4 +78,33 @@ func parseJWT(p string) ([]byte, error) {
 		return nil, fmt.Errorf("oidc: malformed jwt payload: %v", err)
 	}
 	return payload, nil
+}
+
+func DoRetries(call func() (*http.Response, error), retries int) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	for {
+		resp, err = call()
+		if err != nil {
+			return nil, err
+		}
+
+		if !isStatusRetryable(resp.StatusCode) || retries == 0 {
+			break
+		}
+
+		time.Sleep(3 * time.Second)
+		retries--
+	}
+
+	return resp, nil
+}
+
+func isStatusRetryable(statusCode int) bool {
+	if statusCode == http.StatusInternalServerError || statusCode == http.StatusTooManyRequests {
+		return true
+	}
+
+	return false
 }

@@ -3,6 +3,8 @@
 package tokenutil
 
 import (
+	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,6 +124,74 @@ func TestDecodeAccessToken(t *testing.T) {
 				require.NoError(t, err, "Unexpected error")
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// nolint: tparallel
+func TestDoRetries(t *testing.T) {
+	t.Parallel()
+	totalRetries := 0
+	testcases := []struct {
+		name           string
+		call           func() (*http.Response, error)
+		responseStatus int
+		err            error
+	}{
+		{
+			name: "status 500",
+			call: func() (*http.Response, error) {
+				totalRetries++
+
+				return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+			},
+			responseStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "status 429",
+			call: func() (*http.Response, error) {
+				totalRetries++
+
+				return &http.Response{StatusCode: http.StatusTooManyRequests}, nil
+			},
+			responseStatus: http.StatusTooManyRequests,
+		},
+		{
+			name: "status 502 no retry",
+			call: func() (*http.Response, error) {
+				totalRetries++
+
+				return &http.Response{StatusCode: http.StatusBadGateway}, nil
+			},
+			responseStatus: http.StatusBadGateway,
+		},
+		{
+			name: "no url",
+			call: func() (*http.Response, error) {
+				return nil, errors.New("http: nil Request.URL")
+			},
+			err: errors.New("http: nil Request.URL"),
+		},
+	}
+
+	for _, testcase := range testcases {
+		tc := testcase
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := DoRetries(tc.call, 1) // nolint: bodyclose
+			if tc.err != nil {
+				assert.EqualError(t, err, tc.err.Error())
+			} else {
+				assert.Equal(t, tc.responseStatus, resp.StatusCode)
+
+				// only 429 and 500 status codes should retry
+				if tc.responseStatus == http.StatusBadGateway {
+					assert.Equal(t, 1, totalRetries)
+				} else {
+					assert.Equal(t, 2, totalRetries)
+				}
+
+				totalRetries = 0
+			}
 		})
 	}
 }
