@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/errors"
 	"gopkg.in/square/go-jose.v2"
 )
 
@@ -68,18 +70,6 @@ func DecodeAccessToken(rawToken string) (Token, error) {
 	return token, nil
 }
 
-func parseJWT(p string) ([]byte, error) {
-	parts := strings.Split(p, ".")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("oidc: malformed jwt, expected 3 parts got %d", len(parts))
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("oidc: malformed jwt payload: %v", err)
-	}
-	return payload, nil
-}
-
 func DoRetries(call func() (*http.Response, error), retries int) (*http.Response, error) {
 	var resp *http.Response
 	var err error
@@ -101,10 +91,59 @@ func DoRetries(call func() (*http.Response, error), retries int) (*http.Response
 	return resp, nil
 }
 
+func ManageHTTPErrorCodes(resp *http.Response, clientID string) error {
+	var err error
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusBadRequest:
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		msg := fmt.Sprintf("Bad request: %v", string(body))
+		err = errors.MakeErrBadRequest(errors.ErrorResponse{
+			ErrorCode: "ErrGenerateTokenBadRequest",
+			Message:   msg,
+		})
+
+		return err
+	case http.StatusForbidden:
+		err = errors.MakeErrForbidden(clientID)
+
+		return err
+	case http.StatusUnauthorized:
+		err = errors.MakeErrUnauthorized(clientID)
+
+		return err
+	default:
+		msg := fmt.Sprintf("Unexpected status code %v", resp.StatusCode)
+		err = errors.MakeErrInternalError(errors.ErrorResponse{
+			ErrorCode: "ErrGenerateTokenUnexpectedResponseCode",
+			Message:   msg,
+		})
+
+		return err
+	}
+}
+
 func isStatusRetryable(statusCode int) bool {
 	if statusCode == http.StatusInternalServerError || statusCode == http.StatusTooManyRequests {
 		return true
 	}
 
 	return false
+}
+
+func parseJWT(p string) ([]byte, error) {
+	parts := strings.Split(p, ".")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("oidc: malformed jwt, expected 3 parts got %d", len(parts))
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("oidc: malformed jwt payload: %v", err)
+	}
+	return payload, nil
 }

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/errors"
 	tokenutil "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/token-util"
 )
 
@@ -64,36 +63,8 @@ func GenerateToken(ctx context.Context, tenantID, clientID, clientSecret string,
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		break
-	case http.StatusBadRequest:
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		msg := fmt.Sprintf("Bad request: %v", string(body))
-		err = errors.MakeErrBadRequest(errors.ErrorResponse{
-			ErrorCode: "ErrGenerateTokenBadRequest",
-			Message:   msg,
-		})
-
-		return "", err
-	case http.StatusForbidden:
-		err = errors.MakeErrForbidden(clientID)
-
-		return "", err
-	case http.StatusUnauthorized:
-		err = errors.MakeErrUnauthorized(clientID)
-
-		return "", err
-	default:
-		msg := fmt.Sprintf("Unexpected status code %v", resp.StatusCode)
-		err = errors.MakeErrInternalError(errors.ErrorResponse{
-			ErrorCode: "ErrGenerateTokenUnexpectedResponseCode",
-			Message:   msg,
-		})
-
+	err = tokenutil.ManageHTTPErrorCodes(resp, clientID)
+	if err != nil {
 		return "", err
 	}
 

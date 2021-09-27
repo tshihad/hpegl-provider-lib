@@ -129,6 +129,13 @@ func setTestCase() ([]testCaseIssuer, []testCaseIdentity) {
 				url:        "https://hpe-greenlake-tenant.okta.com/oauth2/default",
 				ctx:        context.Background(),
 				statusCode: http.StatusUnauthorized,
+				err:        errors.New("Unauthorized access: "),
+			},
+			{
+				name:       "status code 403",
+				url:        "https://hpe-greenlake-tenant.okta.com/oauth2/default",
+				ctx:        context.Background(),
+				statusCode: http.StatusForbidden,
 				err:        errors.New("Forbidden: "),
 			},
 		}, []testCaseIdentity{
