@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/errors"
+	tokenutil "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/token-util"
 )
 
 const (
@@ -33,47 +33,7 @@ type TokenResponse struct {
 	AccessTokenOnly bool      `json:"accessTokenOnly"`
 }
 
-type Client struct {
-	identityServiceURL string
-	httpClient         httpClient
-}
-
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// New creates a new identity Client object
-func New(identityServiceURL string) *Client {
-	client := &http.Client{Timeout: 10 * time.Second}
-	identityServiceURL = strings.TrimRight(identityServiceURL, "/")
-	return &Client{
-		identityServiceURL: identityServiceURL,
-		httpClient:         client,
-	}
-}
-
-func doRetries(call func() (*http.Response, error), retries int) (*http.Response, error) {
-	var resp *http.Response
-	var err error
-
-	for {
-		resp, err = call()
-		if err != nil {
-			return nil, err
-		}
-
-		if !isStatusRetryable(resp.StatusCode) || retries == 0 {
-			break
-		}
-
-		time.Sleep(3 * time.Second)
-		retries--
-	}
-
-	return resp, nil
-}
-
-func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSecret string) (string, error) {
+func GenerateToken(ctx context.Context, tenantID, clientID, clientSecret string, identityServiceURL string, httpClient tokenutil.HttpClient) (string, error) {
 	params := GenerateTokenInput{
 		TenantID:     tenantID,
 		ClientID:     clientID,
@@ -81,7 +41,7 @@ func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSe
 		GrantType:    "client_credentials",
 	}
 
-	url := fmt.Sprintf("%s/v1/token", c.identityServiceURL)
+	url := fmt.Sprintf("%s/v1/token", identityServiceURL)
 
 	b, err := json.Marshal(params)
 	if err != nil {
@@ -95,44 +55,16 @@ func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSe
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := doRetries(func() (*http.Response, error) {
-		return c.httpClient.Do(req)
+	resp, err := tokenutil.DoRetries(func() (*http.Response, error) {
+		return httpClient.Do(req)
 	}, retryLimit)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		break
-	case http.StatusBadRequest:
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		msg := fmt.Sprintf("Bad request: %v", string(body))
-		err = errors.MakeErrBadRequest(errors.ErrorResponse{
-			ErrorCode: "ErrGenerateTokenBadRequest",
-			Message:   msg,
-		})
-
-		return "", err
-	case http.StatusForbidden:
-		err = errors.MakeErrForbidden(clientID)
-
-		return "", err
-	case http.StatusUnauthorized:
-		err = errors.MakeErrUnauthorized(clientID)
-
-		return "", err
-	default:
-		msg := fmt.Sprintf("Unexpected status code %v", resp.StatusCode)
-		err = errors.MakeErrInternalError(errors.ErrorResponse{
-			ErrorCode: "ErrGenerateTokenUnexpectedResponseCode",
-			Message:   msg,
-		})
-
+	err = tokenutil.ManageHTTPErrorCodes(resp, clientID)
+	if err != nil {
 		return "", err
 	}
 
@@ -149,12 +81,4 @@ func (c *Client) GenerateToken(ctx context.Context, tenantID, clientID, clientSe
 	}
 
 	return token.AccessToken, nil
-}
-
-func isStatusRetryable(statusCode int) bool {
-	if statusCode == http.StatusInternalServerError || statusCode == http.StatusTooManyRequests {
-		return true
-	}
-
-	return false
 }

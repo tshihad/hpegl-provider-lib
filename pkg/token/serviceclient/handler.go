@@ -11,8 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/identitytoken"
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/issuertoken"
+	httpc "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/httpclient"
 	tokenutil "github.com/hewlettpackard/hpegl-provider-lib/pkg/token/token-util"
 )
 
@@ -61,11 +60,7 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	h.clientSecret = d.Get("user_secret").(string)
 	h.vendedServiceClient = d.Get("api_vended_service_client").(bool)
 
-	if h.vendedServiceClient {
-		h.client = issuertoken.New(h.iamServiceURL)
-	} else {
-		h.client = identitytoken.New(h.iamServiceURL)
-	}
+	h.client = httpc.New(h.iamServiceURL, h.vendedServiceClient)
 
 	// run overrides
 	for _, opt := range opts {
