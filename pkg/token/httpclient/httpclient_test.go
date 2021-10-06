@@ -69,8 +69,8 @@ func (h *testHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: h.statusCode, Body: body}, nil
 }
 
-func createTestClient(identityServiceURL string, statusCode int, token interface{}, vendedServiceClient bool) *Client {
-	c := New(identityServiceURL, vendedServiceClient)
+func createTestClient(identityServiceURL, passedInToken string, statusCode int, token interface{}, vendedServiceClient bool) *Client {
+	c := New(identityServiceURL, vendedServiceClient, passedInToken)
 	if token == nil {
 		c.httpClient = &testHTTPClient{
 			statusCode: statusCode,
@@ -194,7 +194,7 @@ func TestGenerateToken(t *testing.T) {
 	for _, testcase := range issuertokentc {
 		tc := testcase
 
-		c = createTestClient(tc.url, tc.statusCode, tc.token, true)
+		c = createTestClient(tc.url, "", tc.statusCode, tc.token, true)
 
 		token, err := c.GenerateToken(tc.ctx, "", "", "")
 		if tc.err != nil {
@@ -208,7 +208,7 @@ func TestGenerateToken(t *testing.T) {
 	for _, testcase := range identitytokentc {
 		tc := testcase
 
-		c = createTestClient(tc.url, tc.statusCode, tc.token, false)
+		c = createTestClient(tc.url, "", tc.statusCode, tc.token, false)
 
 		token, err := c.GenerateToken(tc.ctx, "", "", "")
 		if tc.err != nil {
@@ -217,4 +217,13 @@ func TestGenerateToken(t *testing.T) {
 
 		assert.Equal(t, tc.token.AccessToken, token)
 	}
+}
+
+func TestGenerateTokenPassedInToken(t *testing.T) {
+	t.Parallel()
+	c := createTestClient("", "testToken", http.StatusAccepted, nil, true)
+
+	token, err := c.GenerateToken(context.Background(), "", "", "")
+	assert.Equal(t, "testToken", token)
+	assert.NoError(t, err)
 }

@@ -60,7 +60,10 @@ func NewHandler(d *schema.ResourceData, opts ...CreateOpt) (common.TokenChannelI
 	h.clientSecret = d.Get("user_secret").(string)
 	h.vendedServiceClient = d.Get("api_vended_service_client").(bool)
 
-	h.client = httpc.New(h.iamServiceURL, h.vendedServiceClient)
+	// get passed-in token, if present
+	passedInToken := d.Get("iam_token").(string)
+
+	h.client = httpc.New(h.iamServiceURL, h.vendedServiceClient, passedInToken)
 
 	// run overrides
 	for _, opt := range opts {
