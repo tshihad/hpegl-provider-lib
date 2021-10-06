@@ -69,6 +69,14 @@ func NewProviderFunc(reg []registration.ServiceRegistration, pf ConfigureFunc) p
 
 func Schema() map[string]*schema.Schema {
 	providerSchema := make(map[string]*schema.Schema)
+	providerSchema["iam_token"] = &schema.Schema{
+		Type:        schema.TypeString,
+		Optional:    true,
+		DefaultFunc: schema.EnvDefaultFunc("HPEGL_IAM_TOKEN", ""),
+		Description: `The IAM token to be used with the client(s).  Note that in normal operation
+                a service client is used.  Passing-in a token means that tokens will not be generated or refreshed.`,
+	}
+
 	providerSchema["iam_service_url"] = &schema.Schema{
 		Type:        schema.TypeString,
 		Optional:    true,
