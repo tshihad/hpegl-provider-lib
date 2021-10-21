@@ -295,7 +295,7 @@ func NewClientMap(config provider.ConfigData) (map[string]interface{}, diag.Diag
 ## pkg/gltform
 
 This package provides utilities to read and parse a .gltform file.  The .gltform file is primarily used to share
-bmaas/Quake information with the bmaas/Quake provider code.  It is also used by Genesis tooling to share
+metal/Quake information with the metal/Quake provider code.  It is also used by Genesis tooling to share
 the IAM token with other services (CaaS at the moment).  It is TBD if we will persist with the use of the file
 as the provider is developed.
 
@@ -303,11 +303,11 @@ The format of the .gltform file is:
 ```go
 // Gljwt - the contents of the .gltform file
 type Gljwt struct {
-    // SpaceName is optional, and is only required for bmaas if we want to create a project
+    // SpaceName is optional, and is only required for metal if we want to create a project
     SpaceName string `yaml:"space_name,omitempty"`
-    // ProjectID - the bmaas/Quake project ID
+    // ProjectID - the metal/Quake project ID
     ProjectID string `yaml:"project_id"`
-    // RestURL - the URL to be used for bmaas, at present it refers to a Quake portal URL
+    // RestURL - the URL to be used for metal, at present it refers to a Quake portal URL
     RestURL string `yaml:"rest_url"`
     // Token - the GL IAM token
     Token string `yaml:"access_token"`
@@ -316,11 +316,11 @@ type Gljwt struct {
 
 ### Use in service provider repos
 
-The only use of this file is with the bmaas/Quake provider code.
+The only use of this file is with the metal/Quake provider code.
 
 ### Use in hpegl provider
 
-This package is used by the hpegl provider to build a .gltform for use with bmaas.
+This package is used by the hpegl provider to build a .gltform for use with metal.
 
 ## pkg/provider
 
