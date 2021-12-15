@@ -24,7 +24,7 @@
         + [pkg/token/serviceclient](#pkgtokenserviceclient)
             - [Use in service provider repos](#use-in-service-provider-repos-5)
             - [Use in hpegl provider](#use-in-hpegl-provider-5)
-	* [pkg/utils](#pkgutils)
+	* [pkg/atf](#pkgatf)
 		+ [Example use](#example-use)
 
 # hpegl-provider-lib
@@ -161,16 +161,16 @@ Note the following:
     return *Client from the meta interface passed-in to the CRUD code by terraform, like so:
     ```go
     package resources
-    
+
     import (
     	"context"
-    
+
     	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
     	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-    
+
     	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
     )
-    
+
     func ClusterBlueprint() *schema.Resource {
     	return &schema.Resource{
     		Schema:         nil,
@@ -188,31 +188,31 @@ Note the following:
     		Description:        "",
     	}
     }
-    
+
     func clusterBlueprintCreateContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
     	_, err := client.GetClientFromMetaMap(meta)
     	if err != nil {
     		return diag.FromErr(err)
     	}
-    
+
     	return nil
     }
-    
+
     func clusterBlueprintReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
     	_, err := client.GetClientFromMetaMap(meta)
     	if err != nil {
     		return diag.FromErr(err)
     	}
-    
+
     	return nil
     }
-    
+
     func clusterBlueprintDeleteContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
     	_, err := client.GetClientFromMetaMap(meta)
     	if err != nil {
     		return diag.FromErr(err)
     	}
-    
+
     	return nil
     }
     ```
@@ -286,7 +286,7 @@ func NewClientMap(config provider.ConfigData) (map[string]interface{}, diag.Diag
 		// Add service client to map
 		c[cli.ServiceName()] = scli
 	}
-	
+
 	return c, nil
 }
 
@@ -386,14 +386,14 @@ func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // noli
 Note the following:
 * resources.Registration{} is the ServiceRegistration interface implementation for the service, and exposes the
     service resource CRUD operations along with any service block for inclusion in the provider stanza to the "dummy" provider
-  
+
 * providerConfigure returns a schema.ConfigureContextFunc which is used to configure the service client.  The
     client.InitialiseClient{} struct is the service implementation of the client Initialisation interface.
     We add code to initialise the IAM token Handler, use it to create a Token Retrieve Function and put it in
     a map[string]interface{} at the expected key. The client created by the InitialiseClient{}.NewClient()
     function is added to map[string]interface{} map at the key given by InitialiseClient{}.ServiceName().  This is
     to ensure compatibility with the hpegl provider.
-  
+
 ProviderFunc() above can then be used to create a "dummy" service-specific provider as follows:
 ```go
 package main
@@ -560,7 +560,7 @@ The *schema.Resource returned by ProviderSchemaEntry is added to the map[string]
 TypeSet with a maximum size of 1 with the key provided by the Name() function.  Using a TypeSet in this way
 - i.e. with a maximum size of 1 - seems to be the canonical way of adding configuration blocks to
 terraform.  Note the following:
-  
+
 * The intention is that this block will be used for client initialisation in NewClient()
 * The block is marked as optional, since we do not want to force users to have to define blocks for
     GreenLake services that they are not using in a terraform run
@@ -617,7 +617,7 @@ specific to it.  The way that this works is as follows:
     a token (and error) or signal the handler retrieve function to exit by writing into "exitCh" if the context is cancelled.
 * The TokenRetrieveFuncCtx created is stashed in the map[string]interface{} passed down to the provider code at the
     common.TokenRetrieveFunctionKey key for execution by the provider code.
-  
+
 ### pkg/token/common
 
 Constants, a struct and an interface that are used by the retrieve package and by all token Handlers:
@@ -701,7 +701,7 @@ func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]inter
 	c[common.TokenRetrieveFunctionKey] = trf
 
     ...
-	
+
 	return c, nil
 }
 ```
@@ -779,47 +779,15 @@ func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]inter
 	c[common.TokenRetrieveFunctionKey] = trf
 
     ...
-	
+
 	return c, nil
 }
 ```
 
-## pkg/utils
+## pkg/atf
 
-This package provides utilities to read yaml config file values using the viper package. 
-This package is intended to be used as part of the acceptance test framework for service teams and the hpegl-terraform-provider. 
+This package provides utilities to run acceptance test for hpegl provider services.
 
-The utils package has a ReadAccConfig() function. 
-The function searches for a yaml config file with the name equal to the value of TF_ACC_CONFIG environment variable. 
-TF_ACC environment variable must be set to true for the function to be executed. 
-The code panics if the config file is not found.
-```go
-func ReadAccConfig(path string) {
-	if os.Getenv("TF_ACC") == "true" {
-		viper.AddConfigPath(path)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(os.Getenv("TF_ACC_CONFIG"))
-		err := viper.ReadInConfig()
-		if err != nil {
-			panic("fatal error config file: " + err.Error())
-		}
-	}
-}
+<a href="atf/README.md">How to write acceptance test using atf framework</a>
 ```
 
-### Example use
-NOTE: Yaml config files must be stored in the root directory for all service teams. 
-
-```go
-package main
-
-import (
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/utils"
-)
-
-func main() {
-	// Read config file for acceptance test if TF_ACC is set
-	// path parameter equal to root directory
-	utils.ReadAccConfig(".")
-}
-```
