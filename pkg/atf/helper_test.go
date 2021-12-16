@@ -47,13 +47,6 @@ func Test_getLocalName(t *testing.T) {
 			},
 			want: "instance",
 		},
-		{
-			name: "Test case 2: hpegl_caas_network_vpn",
-			args: args{
-				res: "hpegl_caas_network_vpn",
-			},
-			want: "network_vpn",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

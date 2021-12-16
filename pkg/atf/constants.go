@@ -3,8 +3,6 @@ package atf
 const providerStanza = `
 	provider hpegl {
 		vmaas {}
-		caas{}
-		bmaas{}
 	}
 `
 
