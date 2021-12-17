@@ -274,6 +274,35 @@ func NewClientMap(config provider.ConfigData) (map[string]interface{}, diag.Diag
 
 ```
 
+## pkg/gltform
+
+This package provides utilities to read and parse a .gltform file.  The .gltform file is primarily used to share
+bare-metal information with the bare-metal provider code. It is TBD if we will persist with the use of the file
+as the provider is developed.
+
+The format of the .gltform file is:
+```go
+// Gljwt - the contents of the .gltform file
+type Gljwt struct {
+    // SpaceName is optional, and is only required for metal if we want to create a project
+    SpaceName string `yaml:"space_name,omitempty"`
+    // ProjectID - the metal/Quake project ID
+    ProjectID string `yaml:"project_id"`
+    // RestURL - the URL to be used for metal, at present it refers to a Quake portal URL
+    RestURL string `yaml:"rest_url"`
+    // Token - the GL IAM token
+    Token string `yaml:"access_token"`
+}
+```
+
+### Use in service provider repos
+
+The only use of this file is with the bare-metal provider code.
+
+### Use in hpegl provider
+
+This package is used by the hpegl provider to build a .gltform for use with bare-metal.
+
 ## pkg/provider
 
 This defines a number of functions used in creating the plugin.ProviderFunc object that is used to
