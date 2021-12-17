@@ -68,30 +68,29 @@ An example of this:
 package client
 
 import (
-	"context"
 	"fmt"
+	"os"
 
+	api_client "github.com/HewlettPackard/hpegl-vmaas-cmp-go-sdk/pkg/client"
+	"github.com/HewlettPackard/hpegl-vmaas-cmp-go-sdk/pkg/models"
+	cmp_client "github.com/HewlettPackard/hpegl-vmaas-terraform-resources/internal/cmp"
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/constants"
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/utils"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
-	"github.com/hpe-hcss/hpecli-generated-caas-client/pkg/mcaasapi"
-
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/client"
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
-
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/constants"
+	"github.com/tshihad/tftags"
 )
 
 // keyForGLClientMap is the key in the map[string]interface{} that is passed down by hpegl used to store *Client
 // This must be unique, hpegl will error-out if it isn't
-const keyForGLClientMap = "caasClient"
+const keyForGLClientMap = "vmaasClient"
 
 // Assert that InitialiseClient satisfies the client.Initialisation interface
 var _ client.Initialisation = (*InitialiseClient)(nil)
 
 // Client is the client struct that is used by the provider code
 type Client struct {
-	CaasClient *mcaasapi.APIClient
+	CmpClient *cmp_client.Client
 }
 
 // InitialiseClient is imported by hpegl from each service repo
@@ -102,47 +101,54 @@ type InitialiseClient struct{}
 // The hpegl provider will put *Client at the value of keyForGLClientMap (returned by ServiceName) in
 // the map of clients that it creates and passes down to provider code.  hpegl executes NewClient for each service.
 func (i InitialiseClient) NewClient(r *schema.ResourceData) (interface{}, error) {
-	// Get CaaS settings from the CaaS block
-	caasProviderSettings, err := client.GetServiceSettingsMap(constants.ServiceName, r)
-	if err != nil {
-		return nil, nil
+	var tfprovider models.TFProvider
+	if err := tftags.Get(r, &tfprovider); err != nil {
+		return nil, err
 	}
-	apiURL := caasProviderSettings[constants.APIURL].(string)
+	// Create VMaas Client
+	client := new(Client)
 
-	caasCfg := mcaasapi.Configuration{
-		BasePath:      apiURL,
-		DefaultHeader: make(map[string]string),
-		UserAgent:     "hpegl-terraform",
+	cfg := api_client.Configuration{
+		Host:          serviceURL,
+		DefaultHeader: getHeaders(),
+		DefaultQueryParams: map[string]string{
+			constants.SpaceKey:    tfprovider.Vmaas.SpaceName,
+			constants.LocationKey: tfprovider.Vmaas.Location,
+		},
 	}
+	apiClient := api_client.NewAPIClient(&cfg)
+	utils.SetMeta(apiClient, r)
+	client.CmpClient = cmp_client.NewClient(apiClient, cfg)
 
-	cli := new(Client)
-	cli.CaasClient = mcaasapi.NewAPIClient(&caasCfg)
-
-	return cli, nil
+	return client, nil
 }
 
 // ServiceName is used to return the value of keyForGLClientMap, for use by hpegl
 func (i InitialiseClient) ServiceName() string {
 	return keyForGLClientMap
 }
-
 // GetClientFromMetaMap is a convenience function used by provider code to extract *Client from the
 // meta argument passed-in by terraform
 func GetClientFromMetaMap(meta interface{}) (*Client, error) {
 	cli := meta.(map[string]interface{})[keyForGLClientMap]
 	if cli == nil {
-		return nil, fmt.Errorf("client is not initialised, make sure that caas block is defined in hpegl stanza")
+		return nil, fmt.Errorf("client is not initialised, make sure that vmaas block is defined in hpegl stanza")
 	}
 
 	return cli.(*Client), nil
 }
 
-// GetToken is a convenience function used by provider code to extract retrieve.TokenRetrieveFuncCtx from
-// the meta argument passed-in by terraform and execute it with the context ctx
-func GetToken(ctx context.Context, meta interface{}) (string, error) {
-	trf := meta.(map[string]interface{})[common.TokenRetrieveFunctionKey].(retrieve.TokenRetrieveFuncCtx)
+// Get env configurations for VmaaS services
+func getHeaders() map[string]string {
+	token := os.Getenv("HPEGL_IAM_TOKEN")
+	header := make(map[string]string)
+	serviceURL = utils.GetServiceEndpoint()
+	if utils.GetEnvBool(constants.MockIAMKey) {
+		header["subject"] = os.Getenv(constants.CmpSubjectKey)
+		header["Authorization"] = token
+	}
 
-	return trf(ctx)
+	return header
 }
 
 ```
@@ -160,61 +166,57 @@ Note the following:
 * We've added a GetClientFromMetaMap() convenience function that is used by provider CRUD code to
     return *Client from the meta interface passed-in to the CRUD code by terraform, like so:
     ```go
-    package resources
+	package resources
 
-    import (
-    	"context"
+	import (
+		"context"
 
-    	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-    	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+		"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/internal/utils"
+		"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/client"
+		"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+		"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	)
 
-    	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
-    )
+	func DatastoreData() *schema.Resource {
+		return &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"name": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: f(generalNamedesc, "datastore", "datastore"),
+				},
+				"cloud_id": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: f(generalDDesc, "cloud"),
+				},
+			},
+			ReadContext: datastoreReadContext,
+			Description: `The ` + DSDatastore + ` data source can be used to discover the ID of a hpegl vmaas datastore.
+			This can then be used with resources or data sources that require a ` + DSDatastore + `,
+			such as the ` + ResInstance + ` resource.`,
+			SchemaVersion:  0,
+			StateUpgraders: nil,
+			Importer: &schema.ResourceImporter{
+				StateContext: schema.ImportStatePassthroughContext,
+			},
+		}
+	}
 
-    func ClusterBlueprint() *schema.Resource {
-    	return &schema.Resource{
-    		Schema:         nil,
-    		SchemaVersion:  0,
-    		StateUpgraders: nil,
-    		CreateContext:  clusterBlueprintCreateContext,
-    		ReadContext:    clusterBlueprintReadContext,
-    		// TODO figure out if and how a blueprint can be updated
-    		// Update:             clusterBlueprintUpdate,
-    		DeleteContext:      clusterBlueprintDeleteContext,
-    		CustomizeDiff:      nil,
-    		Importer:           nil,
-    		DeprecationMessage: "",
-    		Timeouts:           nil,
-    		Description:        "",
-    	}
-    }
+	func datastoreReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		c, err := client.GetClientFromMetaMap(meta)
+		if err != nil {
+			return diag.FromErr(err)
+		}
 
-    func clusterBlueprintCreateContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-    	_, err := client.GetClientFromMetaMap(meta)
-    	if err != nil {
-    		return diag.FromErr(err)
-    	}
+		data := utils.NewData(d)
+		err = c.CmpClient.Datastore.Read(ctx, data, meta)
+		if err != nil {
+			return diag.FromErr(err)
+		}
 
-    	return nil
-    }
-
-    func clusterBlueprintReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-    	_, err := client.GetClientFromMetaMap(meta)
-    	if err != nil {
-    		return diag.FromErr(err)
-    	}
-
-    	return nil
-    }
-
-    func clusterBlueprintDeleteContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-    	_, err := client.GetClientFromMetaMap(meta)
-    	if err != nil {
-    		return diag.FromErr(err)
-    	}
-
-    	return nil
-    }
+		return nil
+	}
     ```
 
 Note that we've added a GetToken() convenience function that is used by provider CRUD code to fetch the
@@ -235,25 +237,7 @@ the user on the console, who can take action (i.e. add a service block to the pr
 
 In the hpegl provider a slice of service implementations of this interface is created and iterated over to
 populate the map[string]interface{} that is provided as the meta argument to service provider code by
-hpegl.  The slice is defined as follows:
-
-```go
-package clients
-
-import (
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/client"
-
-	clicaas "github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
-)
-
-func InitialiseClients() []client.Initialisation {
-	return []client.Initialisation{
-		clicaas.InitialiseClient{},
-	}
-}
-```
-
-This slice is iterated over as follows:
+hpegl.  This slice is iterated over as follows:
 
 ```go
 package client
@@ -262,8 +246,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
-
-	quake "github.com/quattronetworks/quake-client/pkg/terraform/configuration"
 
 	"github.com/hpe-hcss/terraform-provider-hpegl/internal/services/clients"
 )
@@ -286,7 +268,7 @@ func NewClientMap(config provider.ConfigData) (map[string]interface{}, diag.Diag
 		// Add service client to map
 		c[cli.ServiceName()] = scli
 	}
-
+	
 	return c, nil
 }
 
@@ -295,8 +277,7 @@ func NewClientMap(config provider.ConfigData) (map[string]interface{}, diag.Diag
 ## pkg/gltform
 
 This package provides utilities to read and parse a .gltform file.  The .gltform file is primarily used to share
-metal/Quake information with the metal/Quake provider code.  It is also used by Genesis tooling to share
-the IAM token with other services (CaaS at the moment).  It is TBD if we will persist with the use of the file
+bare-metal information with the bare-metal provider code. It is TBD if we will persist with the use of the file
 as the provider is developed.
 
 The format of the .gltform file is:
@@ -316,11 +297,11 @@ type Gljwt struct {
 
 ### Use in service provider repos
 
-The only use of this file is with the metal/Quake provider code.
+The only use of this file is with the bare-metal provider code.
 
 ### Use in hpegl provider
 
-This package is used by the hpegl provider to build a .gltform for use with metal.
+This package is used by the hpegl provider to build a .gltform for use with bare-metal.
 
 ## pkg/provider
 
@@ -341,17 +322,15 @@ package testutils
 import (
 	"context"
 
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/client"
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/resources"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
-
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/resources"
 )
 
 func ProviderFunc() plugin.ProviderFunc {
@@ -364,6 +343,7 @@ func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // noli
 		if err != nil {
 			return nil, diag.Errorf("error in creating client: %s", err)
 		}
+
 		// Initialise token handler
 		h, err := serviceclient.NewHandler(d)
 		if err != nil {
@@ -371,43 +351,59 @@ func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // noli
 		}
 
 		// Returning a map[string]interface{} with the Client from pkg.client at the
-		// key specified in that repo and with the token retrieve function at the key
-		// specified by the token package to ensure compatibility with the hpegl terraform
-		// provider.
+		// key specified in that repo to ensure compatibility with the hpegl terraform
+		// provider
 		return map[string]interface{}{
 			client.InitialiseClient{}.ServiceName(): cli,
 			common.TokenRetrieveFunctionKey:         retrieve.NewTokenRetrieveFunc(h),
 		}, nil
 	}
 }
-
 ```
 
 Note the following:
 * resources.Registration{} is the ServiceRegistration interface implementation for the service, and exposes the
     service resource CRUD operations along with any service block for inclusion in the provider stanza to the "dummy" provider
-
+  
 * providerConfigure returns a schema.ConfigureContextFunc which is used to configure the service client.  The
     client.InitialiseClient{} struct is the service implementation of the client Initialisation interface.
     We add code to initialise the IAM token Handler, use it to create a Token Retrieve Function and put it in
     a map[string]interface{} at the expected key. The client created by the InitialiseClient{}.NewClient()
     function is added to map[string]interface{} map at the key given by InitialiseClient{}.ServiceName().  This is
     to ensure compatibility with the hpegl provider.
-
+  
 ProviderFunc() above can then be used to create a "dummy" service-specific provider as follows:
 ```go
 package main
 
 import (
+	"context"
+	"flag"
+	"log"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/internal/test-utils"
+	testutils "github.com/HewlettPackard/hpegl-vmaas-terraform-resources/internal/test-utils"
 )
 
 func main() {
-	plugin.Serve(&plugin.ServeOpts{
+	var debugMode bool
+
+	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
+	flag.Parse()
+	opts := &plugin.ServeOpts{
 		ProviderFunc: testutils.ProviderFunc(),
-	})
+	}
+	if debugMode {
+		err := plugin.Debug(context.Background(), "terraform.example.com/vmaas/hpegl", opts)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+
+		return
+	}
+
+	plugin.Serve(opts)
 }
 ```
 
@@ -504,11 +500,9 @@ package resources
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/constants"
-
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/internal/resources"
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/constants"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/registration"
-
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/internal/resources"
 )
 
 // Assert that Registration implements the ServiceRegistration interface
@@ -521,24 +515,54 @@ func (r Registration) Name() string {
 }
 
 func (r Registration) SupportedDataSources() map[string]*schema.Resource {
-	return nil
+	return map[string]*schema.Resource{
+		resources.DSNetwork:          resources.NetworkData(),
+		resources.DSNetworkType:      resources.NetworkTypeData(),
+		resources.DSNetworkPool:      resources.NetworkPoolData(),
+		resources.DSLayout:           resources.LayoutData(),
+		resources.DSGroup:            resources.GroupData(),
+		resources.DSPlan:             resources.PlanData(),
+		resources.DSCloud:            resources.CloudData(),
+		resources.DSResourcePool:     resources.ResourcePoolData(),
+		resources.DSDatastore:        resources.DatastoreData(),
+		resources.DSPowerSchedule:    resources.PowerScheduleData(),
+		resources.DSTemplate:         resources.TemplateData(),
+		resources.DSEnvironment:      resources.EnvironmentData(),
+		resources.DSNetworkInterface: resources.NetworkInterfaceData(),
+		resources.DSCloudFolder:      resources.CloudFolderData(),
+		resources.DSRouter:           resources.RouterData(),
+		resources.DSNetworkDomain:    resources.DomainData(),
+		resources.DSNetworkProxy:     resources.NetworkProxyData(),
+	}
 }
 
 func (r Registration) SupportedResources() map[string]*schema.Resource {
 	return map[string]*schema.Resource{
-		"hpegl_caas_cluster_blueprint": resources.ClusterBlueprint(),
-		"hpegl_caas_cluster":           resources.Cluster(),
+		resources.ResInstance:                resources.Instances(),
+		resources.ResInstanceClone:           resources.InstancesClone(),
+		resources.ResNetwork:                 resources.Network(),
+		resources.ResRouter:                  resources.Router(),
+		resources.ResRouterNat:               resources.RouterNatRule(),
+		resources.ResRouterFirewallRuleGroup: resources.RouterFirewallRuleGroup(),
+		resources.ResRouterRoute:             resources.RouterRoute(),
+		resources.ResRouterBgpNeighbor:       resources.RouterBgpNeighbor(),
 	}
 }
 
 func (r Registration) ProviderSchemaEntry() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
-			constants.APIURL: {
+			constants.LOCATION: {
 				Type:        schema.TypeString,
 				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("HPEGL_CAAS_API_URL", ""),
-				Description: "The URL to use for the CaaS API, can also be set with the HPEGL_CAAS_API_URL env var",
+				DefaultFunc: schema.EnvDefaultFunc("HPEGL_VMAAS_LOCATION", ""),
+				Description: "Location of GL VMaaS Service, can also be set with the HPEGL_VMAAS_LOCATION env var.",
+			},
+			constants.SPACENAME: {
+				Type:        schema.TypeString,
+				Required:    true,
+				DefaultFunc: schema.EnvDefaultFunc("HPEGL_VMAAS_SPACE_NAME", ""),
+				Description: "IAM Space name of the GL VMaaS Service, can also be set with the HPEGL_VMAAS_SPACE_NAME env var.",
 			},
 		},
 	}
@@ -560,7 +584,7 @@ The *schema.Resource returned by ProviderSchemaEntry is added to the map[string]
 TypeSet with a maximum size of 1 with the key provided by the Name() function.  Using a TypeSet in this way
 - i.e. with a maximum size of 1 - seems to be the canonical way of adding configuration blocks to
 terraform.  Note the following:
-
+  
 * The intention is that this block will be used for client initialisation in NewClient()
 * The block is marked as optional, since we do not want to force users to have to define blocks for
     GreenLake services that they are not using in a terraform run
@@ -571,29 +595,6 @@ terraform.  Note the following:
     return an error if there is no service block.  See [earlier](#getclientfrommetamap-function) for
     the implications of using a service block.
 
-### Use in hpegl provider
-
-The hpegl provider defines a slice including individual service implementations of the ServiceRegistration
-interface that is passed-in to provider.NewProviderFunc:
-
-```go
-package resources
-
-import (
-	"github.com/hewlettpackard/hpegl-provider-lib/pkg/registration"
-
-	resquake "github.com/quattronetworks/quake-client/pkg/terraform/registration"
-
-	rescaas "github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/resources"
-)
-
-func SupportedServices() []registration.ServiceRegistration {
-	return []registration.ServiceRegistration{
-		rescaas.Registration{},
-		resquake.Registration{},
-	}
-}
-```
 
 ## pkg/token
 
@@ -617,7 +618,7 @@ specific to it.  The way that this works is as follows:
     a token (and error) or signal the handler retrieve function to exit by writing into "exitCh" if the context is cancelled.
 * The TokenRetrieveFuncCtx created is stashed in the map[string]interface{} passed down to the provider code at the
     common.TokenRetrieveFunctionKey key for execution by the provider code.
-
+  
 ### pkg/token/common
 
 Constants, a struct and an interface that are used by the retrieve package and by all token Handlers:
@@ -701,7 +702,7 @@ func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]inter
 	c[common.TokenRetrieveFunctionKey] = trf
 
     ...
-
+	
 	return c, nil
 }
 ```
@@ -719,17 +720,15 @@ package testutils
 import (
 	"context"
 
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/client"
+	"github.com/HewlettPackard/hpegl-vmaas-terraform-resources/pkg/resources"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/provider"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/common"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/retrieve"
 	"github.com/hewlettpackard/hpegl-provider-lib/pkg/token/serviceclient"
-
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/client"
-	"github.com/hpe-hcss/hpegl-caas-terraform-resources/pkg/resources"
 )
 
 func ProviderFunc() plugin.ProviderFunc {
@@ -742,6 +741,7 @@ func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // noli
 		if err != nil {
 			return nil, diag.Errorf("error in creating client: %s", err)
 		}
+
 		// Initialise token handler
 		h, err := serviceclient.NewHandler(d)
 		if err != nil {
@@ -749,9 +749,8 @@ func providerConfigure(p *schema.Provider) schema.ConfigureContextFunc { // noli
 		}
 
 		// Returning a map[string]interface{} with the Client from pkg.client at the
-		// key specified in that repo and with the token retrieve function at the key
-		// specified by the token package to ensure compatibility with the hpegl terraform
-		// provider.
+		// key specified in that repo to ensure compatibility with the hpegl terraform
+		// provider
 		return map[string]interface{}{
 			client.InitialiseClient{}.ServiceName(): cli,
 			common.TokenRetrieveFunctionKey:         retrieve.NewTokenRetrieveFunc(h),
@@ -779,7 +778,7 @@ func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]inter
 	c[common.TokenRetrieveFunctionKey] = trf
 
     ...
-
+	
 	return c, nil
 }
 ```
@@ -789,5 +788,3 @@ func NewClientMap(ctx context.Context, d *schema.ResourceData) (map[string]inter
 This package provides utilities to run acceptance test for hpegl provider services.
 
 <a href="atf/README.md">How to write acceptance test using atf framework</a>
-```
-
