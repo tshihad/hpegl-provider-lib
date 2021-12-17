@@ -1,3 +1,5 @@
+// (C) Copyright 2021 Hewlett Packard Enterprise Development LP
+
 // package atf or acceptance-test-framework consists of helper files to parse,
 // validate and run acceptance test with vmaas specified terraform acceptance
 // test case format
